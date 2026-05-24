@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HybridCore — Hybrid Compute Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #070b14;
+  --bg2: #0d1221;
+  --bg3: #111827;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --text3: #64748b;
+  --cpu: #3b82f6;
+  --cpu-light: #60a5fa;
+  --gpu: #10b981;
+  --gpu-light: #34d399;
+  --qpu: #a855f7;
+  --qpu-light: #c084fc;
+  --accent: #06b6d4;
+  --accent2: #0891b2;
+  --gold: #f59e0b;
+  --red: #ef4444;
+  --glow-cpu: rgba(59,130,246,0.3);
+  --glow-gpu: rgba(16,185,129,0.3);
+  --glow-qpu: rgba(168,85,247,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* Animated background */
+.bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(6,182,212,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,0.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+.bg-orbs{position:fixed;inset:0;pointer-events:none;z-index:0}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0.15;animation:drift 20s infinite alternate}
+.orb1{width:600px;height:600px;background:radial-gradient(circle,#3b82f6,transparent);top:-200px;left:-200px;animation-delay:0s}
+.orb2{width:500px;height:500px;background:radial-gradient(circle,#a855f7,transparent);bottom:-150px;right:-150px;animation-delay:-7s}
+.orb3{width:400px;height:400px;background:radial-gradient(circle,#06b6d4,transparent);top:40%;left:40%;animation-delay:-14s}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(40px,30px) scale(1.1)}}
+
+/* Layout */
+.app{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:0 24px 80px}
+
+/* Header */
+header{display:flex;align-items:center;justify-content:space-between;padding:28px 0 40px;border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--cpu),var(--qpu));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(168,85,247,0.4)}
+.logo-text{font-size:22px;font-weight:800;background:linear-gradient(90deg,#fff,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-sub{font-size:11px;color:var(--text3);font-weight:500;letter-spacing:0.1em;text-transform:uppercase;margin-top:1px}
+.logo-by{font-size:11px;font-weight:500;margin-top:5px;background:linear-gradient(90deg,var(--gold),#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:0.02em}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.header-badges{display:flex;gap:8px}
+/* Nav */
+.main-nav{display:flex;gap:4px}
+.nav-btn{background:none;border:1px solid var(--border);border-radius:10px;padding:7px 18px;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;letter-spacing:0.01em}
+.nav-btn:hover{border-color:var(--border2);color:var(--text)}
+.nav-btn.active{background:linear-gradient(135deg,rgba(6,182,212,0.12),rgba(168,85,247,0.12));border-color:var(--accent);color:var(--accent);font-weight:600}
+
+/* ── Books page ── */
+.books-page{animation:slideDown 0.4s ease}
+.books-hero{text-align:center;padding:48px 0 40px}
+.books-hero-title{font-size:36px;font-weight:800;background:linear-gradient(135deg,#fff 30%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px}
+.books-hero-sub{font-size:15px;color:var(--text2);max-width:560px;margin:0 auto;line-height:1.7}
+.books-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-bottom:40px}
+.book-card{background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:32px;display:flex;gap:28px;transition:all 0.3s;position:relative;overflow:hidden}
+.book-card:hover{border-color:var(--border2);transform:translateY(-4px);box-shadow:0 24px 48px rgba(0,0,0,0.4)}
+.book-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--bc1,var(--accent)),var(--bc2,var(--qpu)));opacity:0;transition:opacity 0.3s}
+.book-card:hover::before{opacity:1}
+.book-cover{width:120px;flex-shrink:0;border-radius:12px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,0.5)}
+.book-cover-art{width:120px;height:168px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;position:relative;overflow:hidden}
+.book-cover-art::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.05),transparent)}
+.book-cover-icon{font-size:38px;margin-bottom:8px;position:relative;z-index:1}
+.book-cover-num{font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;opacity:0.7;position:relative;z-index:1}
+.book-info{flex:1;min-width:0}
+.book-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:8px}
+.book-title{font-size:22px;font-weight:800;margin-bottom:6px;line-height:1.2}
+.book-tagline{font-size:13px;color:var(--accent);font-weight:500;margin-bottom:12px;font-style:italic}
+.book-desc{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
+.book-themes{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+.book-theme{font-size:11px;padding:3px 10px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);color:var(--text3)}
+.book-actions{display:flex;gap:10px;align-items:center}
+.btn-buy{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;background:linear-gradient(135deg,var(--accent2),var(--qpu));border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;font-family:'Inter',sans-serif;transition:all 0.2s;letter-spacing:0.02em}
+.btn-buy:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(168,85,247,0.35)}
+.btn-browse{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:none;border:1px solid var(--border2);border-radius:10px;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;font-family:'Inter',sans-serif;transition:all 0.2s}
+.btn-browse:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Profile page ── */
+.profile-page{animation:slideDown 0.4s ease}
+.profile-hero{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:start;padding:48px 0 40px;border-bottom:1px solid var(--border);margin-bottom:40px}
+.profile-avatar{width:160px;height:160px;border-radius:24px;flex-shrink:0;box-shadow:0 0 40px rgba(168,85,247,0.3);position:relative;overflow:hidden}
+.profile-avatar img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
+.profile-avatar::after{content:'';position:absolute;inset:-2px;border-radius:26px;background:linear-gradient(135deg,var(--accent),var(--qpu));z-index:-1;opacity:0.4;filter:blur(8px)}
+.profile-name{font-size:36px;font-weight:800;margin-bottom:6px;background:linear-gradient(90deg,#fff,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.profile-title{font-size:15px;color:var(--accent);font-weight:600;margin-bottom:4px}
+.profile-org{font-size:14px;color:var(--text2);margin-bottom:18px}
+.profile-bio{font-size:14px;color:var(--text2);line-height:1.8;max-width:720px;margin-bottom:20px}
+.profile-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.profile-tag{font-size:11px;padding:5px 14px;border-radius:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-weight:500}
+.profile-links{display:flex;gap:10px}
+.profile-link{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:all 0.2s;font-family:'Inter',sans-serif}
+.profile-link.primary{background:linear-gradient(135deg,var(--accent2),var(--qpu));color:#fff;border:none}
+.profile-link.primary:hover{box-shadow:0 8px 20px rgba(168,85,247,0.4);transform:translateY(-2px)}
+.profile-link.secondary{background:none;border:1px solid var(--border2);color:var(--text2)}
+.profile-link.secondary:hover{border-color:var(--accent);color:var(--accent)}
+.profile-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:40px}
+.pstat{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:24px;text-align:center;transition:all 0.25s}
+.pstat:hover{border-color:var(--border2);transform:translateY(-2px)}
+.pstat-val{font-size:32px;font-weight:800;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--accent),var(--qpu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.pstat-label{font-size:12px;color:var(--text3);font-weight:500}
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:40px}
+.profile-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px}
+.profile-card-title{font-size:14px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px;color:var(--text)}
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-item{display:flex;gap:16px;position:relative;padding-bottom:20px}
+.tl-item:last-child{padding-bottom:0}
+.tl-item:not(:last-child)::after{content:'';position:absolute;left:15px;top:32px;bottom:0;width:1px;background:var(--border)}
+.tl-dot{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;border:1px solid var(--border2)}
+.tl-content{}
+.tl-role{font-size:13px;font-weight:700;line-height:1.3}
+.tl-org{font-size:12px;color:var(--accent);font-weight:500;margin-top:2px}
+.tl-detail{font-size:11px;color:var(--text3);margin-top:3px;line-height:1.4}
+.focus-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.focus-item{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;transition:all 0.2s}
+.focus-item:hover{border-color:var(--border2)}
+.focus-icon{font-size:22px;margin-bottom:6px}
+.focus-name{font-size:12px;font-weight:600;margin-bottom:2px}
+.focus-desc{font-size:11px;color:var(--text3);line-height:1.4}
+.edu-item{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border)}
+.edu-item:last-child{border-bottom:none;padding-bottom:0}
+.edu-icon{font-size:24px;flex-shrink:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:10px;border:1px solid var(--border)}
+.edu-degree{font-size:13px;font-weight:700}
+.edu-school{font-size:12px;color:var(--accent);margin-top:2px}
+.edu-detail{font-size:11px;color:var(--text3);margin-top:2px}
+.books-mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.book-mini{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:all 0.2s;text-decoration:none;display:block}
+.book-mini:hover{border-color:var(--accent);transform:translateY(-2px)}
+.book-mini-icon{font-size:20px;margin-bottom:6px}
+.book-mini-title{font-size:12px;font-weight:700;margin-bottom:3px;color:var(--text)}
+.book-mini-genre{font-size:10px;color:var(--text3)}
+.badge{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.05em;border:1px solid}
+.badge-cpu{color:var(--cpu-light);border-color:rgba(59,130,246,0.3);background:rgba(59,130,246,0.08)}
+.badge-gpu{color:var(--gpu-light);border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.08)}
+.badge-qpu{color:var(--qpu-light);border-color:rgba(168,85,247,0.3);background:rgba(168,85,247,0.08)}
+
+/* Steps */
+.steps{display:flex;align-items:center;gap:0;margin:36px 0 40px;padding:20px 24px;background:var(--bg2);border:1px solid var(--border);border-radius:16px}
+.step{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;transition:opacity 0.2s}
+.step.inactive{opacity:0.35}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;border:2px solid var(--border2);color:var(--text2);background:var(--bg3);transition:all 0.3s}
+.step.active .step-num,.step.done .step-num{background:linear-gradient(135deg,var(--accent),var(--qpu));border-color:transparent;color:#fff;box-shadow:0 0 12px rgba(6,182,212,0.4)}
+.step-label{font-size:13px;font-weight:500;color:var(--text2)}
+.step.active .step-label{color:var(--text)}
+.step-divider{width:40px;height:1px;background:var(--border2);flex-shrink:0;margin:0 4px}
+
+/* Section title */
+.section-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Sector grid */
+.sector-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:40px}
+.sector-card{position:relative;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px 20px;cursor:pointer;transition:all 0.3s;overflow:hidden;text-align:center}
+.sector-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.3s;border-radius:20px}
+.sector-card:hover,.sector-card.selected{border-color:transparent;transform:translateY(-3px)}
+.sector-card:hover::before,.sector-card.selected::before{opacity:1}
+.sector-card.selected{box-shadow:0 0 0 2px var(--card-color),0 20px 40px rgba(0,0,0,0.4)}
+.sector-card .glow{position:absolute;width:150px;height:150px;border-radius:50%;filter:blur(50px);opacity:0;bottom:-40px;left:50%;transform:translateX(-50%);transition:opacity 0.3s}
+.sector-card:hover .glow,.sector-card.selected .glow{opacity:0.3}
+.sector-icon{font-size:40px;margin-bottom:16px;display:block;filter:drop-shadow(0 0 8px currentColor)}
+.sector-name{font-size:14px;font-weight:700;margin-bottom:6px}
+.sector-desc{font-size:11px;color:var(--text3);line-height:1.5}
+.sector-tag{display:inline-block;margin-top:12px;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600;opacity:0.7}
+
+/* Subsector row */
+.subsector-panel{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:32px;animation:slideDown 0.4s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+.subsector-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.subsector-card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;transition:all 0.25s;position:relative;overflow:hidden}
+.subsector-card:hover,.subsector-card.selected{border-color:var(--accent);background:rgba(6,182,212,0.05)}
+.subsector-card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 8px 20px rgba(6,182,212,0.15)}
+.subsector-card.selected::before{content:'✓';position:absolute;top:10px;right:12px;font-size:11px;color:var(--accent);font-weight:700}
+.subsector-name{font-size:13px;font-weight:600;margin-bottom:4px}
+.subsector-hint{font-size:11px;color:var(--text3)}
+
+/* Main simulation layout */
+.sim-layout{display:grid;grid-template-columns:320px 1fr 280px;gap:20px;margin-bottom:24px;animation:slideDown 0.4s ease}
+
+/* Workload list */
+.workload-panel{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.workload-item{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
+.workload-item.active{border-color:var(--accent);background:rgba(6,182,212,0.06)}
+.workload-item::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--wl-color,var(--accent));border-radius:3px 0 0 3px;opacity:0;transition:opacity 0.2s}
+.workload-item.active::after{opacity:1}
+.wl-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.wl-name{font-size:12px;font-weight:600;line-height:1.4}
+.wl-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.chip{font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;text-transform:uppercase;letter-spacing:0.05em}
+.chip-cpu{background:rgba(59,130,246,0.15);color:var(--cpu-light);border:1px solid rgba(59,130,246,0.2)}
+.chip-gpu{background:rgba(16,185,129,0.15);color:var(--gpu-light);border:1px solid rgba(16,185,129,0.2)}
+.chip-qpu{background:rgba(168,85,247,0.15);color:var(--qpu-light);border:1px solid rgba(168,85,247,0.2)}
+.wl-bar{height:3px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:8px}
+.wl-bar-fill{height:100%;border-radius:3px;transition:width 0.5s ease}
+
+/* Center compute panel */
+.compute-panel{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px}
+.compute-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.compute-title{font-size:16px;font-weight:700}
+.perf-score{display:flex;align-items:center;gap:10px}
+.perf-label{font-size:11px;color:var(--text3)}
+.perf-value{font-size:28px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--qpu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-family:'JetBrains Mono',monospace}
+.perf-unit{font-size:11px;color:var(--text3);margin-top:4px}
+
+.compute-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.compute-node{border-radius:16px;padding:20px;border:1px solid;transition:all 0.3s;position:relative;overflow:hidden}
+.compute-node::before{content:'';position:absolute;inset:0;opacity:0.05;border-radius:16px}
+.compute-node.cpu{border-color:rgba(59,130,246,0.3);background:rgba(59,130,246,0.06)}
+.compute-node.gpu{border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.06)}
+.compute-node.qpu{border-color:rgba(168,85,247,0.3);background:rgba(168,85,247,0.06)}
+.cn-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cn-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.cn-icon.cpu{background:rgba(59,130,246,0.2);box-shadow:0 0 12px rgba(59,130,246,0.3)}
+.cn-icon.gpu{background:rgba(16,185,129,0.2);box-shadow:0 0 12px rgba(16,185,129,0.3)}
+.cn-icon.qpu{background:rgba(168,85,247,0.2);box-shadow:0 0 12px rgba(168,85,247,0.3)}
+.cn-name{font-size:13px;font-weight:700}
+.cn-type{font-size:10px;color:var(--text3);margin-top:1px}
+.cn-pct{font-size:32px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1}
+.cn-pct.cpu{color:var(--cpu-light)}
+.cn-pct.gpu{color:var(--gpu-light)}
+.cn-pct.qpu{color:var(--qpu-light)}
+.cn-bar{height:6px;background:var(--bg);border-radius:6px;overflow:hidden;margin:12px 0 8px}
+.cn-bar-fill{height:100%;border-radius:6px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1)}
+.cn-bar-fill.cpu{background:linear-gradient(90deg,var(--cpu),var(--cpu-light));box-shadow:0 0 8px var(--glow-cpu)}
+.cn-bar-fill.gpu{background:linear-gradient(90deg,var(--gpu),var(--gpu-light));box-shadow:0 0 8px var(--glow-gpu)}
+.cn-bar-fill.qpu{background:linear-gradient(90deg,var(--qpu),var(--qpu-light));box-shadow:0 0 8px var(--glow-qpu)}
+.cn-tasks{font-size:10px;color:var(--text3)}
+
+/* Sliders */
+.slider-section{border-top:1px solid var(--border);padding-top:20px}
+.slider-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.slider-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.slider-label{font-size:11px;color:var(--text2);width:30px;flex-shrink:0;font-family:'JetBrains Mono',monospace}
+.slider{flex:1;-webkit-appearance:none;height:4px;border-radius:4px;outline:none;cursor:pointer;transition:all 0.2s}
+.slider.cpu-slider{background:linear-gradient(90deg,var(--cpu) var(--val,50%),var(--bg3) var(--val,50%))}
+.slider.gpu-slider{background:linear-gradient(90deg,var(--gpu) var(--val,30%),var(--bg3) var(--val,30%))}
+.slider.qpu-slider{background:linear-gradient(90deg,var(--qpu) var(--val,20%),var(--bg3) var(--val,20%))}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;cursor:pointer;transition:transform 0.2s}
+.slider.cpu-slider::-webkit-slider-thumb{background:var(--cpu-light);box-shadow:0 0 8px var(--glow-cpu)}
+.slider.gpu-slider::-webkit-slider-thumb{background:var(--gpu-light);box-shadow:0 0 8px var(--glow-gpu)}
+.slider.qpu-slider::-webkit-slider-thumb{background:var(--qpu-light);box-shadow:0 0 8px var(--glow-qpu)}
+.slider:hover::-webkit-slider-thumb{transform:scale(1.3)}
+.slider-val{font-size:11px;font-family:'JetBrains Mono',monospace;width:32px;text-align:right;flex-shrink:0}
+.slider-val.cpu{color:var(--cpu-light)}
+.slider-val.gpu{color:var(--gpu-light)}
+.slider-val.qpu{color:var(--qpu-light)}
+
+/* Metrics panel */
+.metrics-panel{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.metric-card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:14px;transition:all 0.3s}
+.metric-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:6px;font-weight:600}
+.metric-value{font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1.1}
+.metric-sub{font-size:10px;color:var(--text3);margin-top:3px}
+.metric-bar{height:3px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:10px}
+.metric-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--qpu));transition:width 0.6s ease}
+.metric-change{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;margin-top:6px}
+.metric-change.up{background:rgba(16,185,129,0.1);color:var(--gpu-light)}
+.metric-change.down{background:rgba(239,68,68,0.1);color:var(--red)}
+
+/* Integration output */
+.integration-panel{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px;animation:slideDown 0.4s ease}
+.integration-title{font-size:18px;font-weight:700;margin-bottom:6px}
+.integration-sub{font-size:13px;color:var(--text2);margin-bottom:28px}
+.flow-container{position:relative;height:180px;overflow:hidden}
+.flow-svg{width:100%;height:100%}
+
+/* Output cards */
+.output-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+.output-card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:16px;transition:all 0.3s}
+.output-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.oc-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.oc-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.oc-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.oc-desc{font-size:11px;color:var(--text3);line-height:1.5}
+.oc-value{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-top:10px}
+
+/* Final result */
+.final-result{background:linear-gradient(135deg,rgba(6,182,212,0.08),rgba(168,85,247,0.08));border:1px solid rgba(6,182,212,0.2);border-radius:16px;padding:20px;margin-top:16px;display:flex;align-items:center;gap:20px}
+.fr-icon{font-size:36px;flex-shrink:0}
+.fr-title{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:4px}
+.fr-desc{font-size:13px;color:var(--text2);line-height:1.5}
+.fr-metric{margin-left:auto;text-align:right;flex-shrink:0}
+.fr-metric-val{font-size:28px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--qpu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-family:'JetBrains Mono',monospace}
+.fr-metric-label{font-size:10px;color:var(--text3)}
+
+/* Empty states */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text3);gap:12px}
+.empty-icon{font-size:48px;opacity:0.4}
+.empty-text{font-size:14px;font-weight:500}
+.empty-sub{font-size:12px;text-align:center;max-width:300px;line-height:1.6}
+
+/* Animated pulse */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.pulse{animation:pulse 2s infinite}
+
+/* Tooltip */
+.tooltip{position:absolute;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text);pointer-events:none;z-index:100;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+
+/* Active workload detail */
+.wl-detail{background:linear-gradient(135deg,rgba(6,182,212,0.05),rgba(168,85,247,0.05));border:1px solid rgba(6,182,212,0.15);border-radius:12px;padding:14px;margin-top:4px}
+.wl-detail-title{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em}
+.wl-detail-text{font-size:11px;color:var(--text2);line-height:1.5}
+
+/* Run button */
+.run-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:linear-gradient(135deg,var(--accent2),var(--qpu));border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.3s;margin-top:8px;font-family:'Inter',sans-serif;letter-spacing:0.02em}
+.run-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(168,85,247,0.4)}
+.run-btn:active{transform:translateY(0)}
+
+/* Responsive tweaks */
+@media(max-width:1200px){
+  .sector-grid{grid-template-columns:repeat(3,1fr)}
+  .sim-layout{grid-template-columns:1fr 1fr}
+  .metrics-panel{grid-column:span 2;display:grid;grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:800px){
+  .sector-grid{grid-template-columns:repeat(2,1fr)}
+  .sim-layout{grid-template-columns:1fr}
+  .compute-grid{grid-template-columns:1fr}
+}
+
+/* Animated connection lines */
+@keyframes dash{to{stroke-dashoffset:-20}}
+.flow-line{stroke-dasharray:6 4;animation:dash 1s linear infinite}
+
+/* Highlight effect on cards */
+.sector-card:hover .sector-icon{animation:bounce 0.4s ease}
+@keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+
+/* Simulation disclaimer */
+.sim-disclaimer{display:flex;align-items:flex-start;gap:10px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:11px;color:var(--text3);line-height:1.6}
+.sim-disclaimer-icon{flex-shrink:0;font-size:14px;margin-top:1px}
+
+/* Site footer */
+.site-footer{border-top:1px solid var(--border);margin-top:60px;padding:32px 0 24px}
+.footer-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-bottom:24px}
+.footer-col-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:10px}
+.footer-col-text{font-size:11px;color:var(--text3);line-height:1.7}
+.footer-disclaimer{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:16px 20px;font-size:11px;color:var(--text3);line-height:1.7;margin-bottom:20px}
+.footer-disclaimer strong{color:var(--text2)}
+.footer-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--border)}
+.footer-copy{font-size:12px;color:var(--text3)}
+.footer-copy span{color:var(--accent);font-weight:600}
+.footer-links{display:flex;gap:16px}
+.footer-link{font-size:11px;color:var(--text3);text-decoration:none;transition:color 0.2s}
+.footer-link:hover{color:var(--accent)}
+
+.hidden{display:none!important}
+.fade-in{animation:fadeIn 0.3s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-orbs">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
+
+<div class="app">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚛</div>
+      <div>
+        <div class="logo-text">HybridCore</div>
+        <div class="logo-sub">Hybrid Compute Simulator</div>
+        <div class="logo-by">By Nishant Prabhakar</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="main-nav">
+        <button class="nav-btn active" id="nav-home" onclick="navTo('home')">⚙ Simulator</button>
+        <button class="nav-btn" id="nav-books" onclick="navTo('books')">📚 Books</button>
+        <button class="nav-btn" id="nav-profile" onclick="navTo('profile')">👤 Profile</button>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-cpu">CPU Classical</span>
+        <span class="badge badge-gpu">GPU Parallel</span>
+        <span class="badge badge-qpu">QPU Quantum</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Steps -->
+  <div class="steps" id="steps">
+    <div class="step active" id="step1" onclick="goToStep(1)">
+      <div class="step-num">1</div>
+      <div class="step-label">Select Sector</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step inactive" id="step2" onclick="goToStep(2)">
+      <div class="step-num">2</div>
+      <div class="step-label">Choose Subsector</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step inactive" id="step3" onclick="goToStep(3)">
+      <div class="step-num">3</div>
+      <div class="step-label">Configure Workloads</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step inactive" id="step4" onclick="goToStep(4)">
+      <div class="step-num">4</div>
+      <div class="step-label">Integration Output</div>
+    </div>
+  </div>
+
+  <!-- Step 1: Sector Selection -->
+  <div id="panel-sectors">
+    <div class="section-title">Select an Industry Sector</div>
+    <div class="sector-grid" id="sector-grid"></div>
+  </div>
+
+  <!-- Step 2: Subsector Selection -->
+  <div id="panel-subsectors" class="hidden">
+    <div class="section-title" id="subsector-section-title">Choose a Subsector</div>
+    <div class="subsector-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div>
+          <div id="subsector-sector-name" style="font-size:18px;font-weight:700;margin-bottom:4px"></div>
+          <div id="subsector-sector-desc" style="font-size:13px;color:var(--text2)"></div>
+        </div>
+        <button onclick="backToSectors()" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 16px;color:var(--text2);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">← Back</button>
+      </div>
+      <div class="subsector-grid" id="subsector-grid"></div>
+    </div>
+  </div>
+
+  <!-- Step 3: Simulation -->
+  <div id="panel-simulation" class="hidden">
+    <div class="section-title" id="sim-section-title">Workload Simulation</div>
+    <div class="sim-disclaimer">
+      <span class="sim-disclaimer-icon">⚠</span>
+      <span><strong style="color:var(--text2)">Illustrative Model — Not Investment or Technical Advice.</strong> Compute allocation percentages, performance metrics, latency figures, cost estimates, and efficiency gains shown in this simulator are <strong style="color:var(--text2)">representative estimates</strong> derived from published academic literature, industry benchmarks, and modelling assumptions. They do not represent guaranteed, actual, or achievable results for any specific hardware configuration, vendor platform, or deployment scenario. Real-world outcomes will vary materially. This tool is provided for educational and conceptual exploration purposes only.</span>
+    </div>
+    <div class="sim-layout">
+      <!-- Left: workloads -->
+      <div class="workload-panel" id="workload-panel">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between">
+          Workloads
+          <button onclick="backToSubsectors()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">← Change</button>
+        </div>
+        <div id="workload-list"></div>
+      </div>
+
+      <!-- Center: compute allocation -->
+      <div class="compute-panel">
+        <div class="compute-header">
+          <div>
+            <div class="compute-title">Compute Allocation</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px" id="active-workload-name">Select a workload to configure</div>
+          </div>
+          <div class="perf-score">
+            <div>
+              <div class="perf-label">Performance Score</div>
+              <div class="perf-value" id="perf-score">--</div>
+              <div class="perf-unit">/ 100</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="compute-grid">
+          <div class="compute-node cpu">
+            <div class="cn-header">
+              <div><div class="cn-name">CPU</div><div class="cn-type">Classical Processing</div></div>
+              <div class="cn-icon cpu">🖥</div>
+            </div>
+            <div class="cn-pct cpu" id="cpu-pct">0%</div>
+            <div class="cn-bar"><div class="cn-bar-fill cpu" id="cpu-bar" style="width:0%"></div></div>
+            <div class="cn-tasks" id="cpu-tasks">Sequential logic, control flow</div>
+          </div>
+          <div class="compute-node gpu">
+            <div class="cn-header">
+              <div><div class="cn-name">GPU</div><div class="cn-type">Parallel Processing</div></div>
+              <div class="cn-icon gpu">⚡</div>
+            </div>
+            <div class="cn-pct gpu" id="gpu-pct">0%</div>
+            <div class="cn-bar"><div class="cn-bar-fill gpu" id="gpu-bar" style="width:0%"></div></div>
+            <div class="cn-tasks" id="gpu-tasks">Matrix ops, ML inference</div>
+          </div>
+          <div class="compute-node qpu">
+            <div class="cn-header">
+              <div><div class="cn-name">QPU</div><div class="cn-type">Quantum Processing</div></div>
+              <div class="cn-icon qpu">🔮</div>
+            </div>
+            <div class="cn-pct qpu" id="qpu-pct">0%</div>
+            <div class="cn-bar"><div class="cn-bar-fill qpu" id="qpu-bar" style="width:0%"></div></div>
+            <div class="cn-tasks" id="qpu-tasks">Optimization, superposition</div>
+          </div>
+        </div>
+
+        <div class="slider-section" id="slider-section">
+          <div class="slider-title">
+            <span>⚙</span> Adjust Allocation — drag to rebalance workloads
+          </div>
+          <div class="slider-row">
+            <div class="slider-label" style="color:var(--cpu-light)">CPU</div>
+            <input type="range" class="slider cpu-slider" id="cpu-slider" min="0" max="100" value="0" oninput="onSliderChange('cpu',this.value)">
+            <div class="slider-val cpu" id="cpu-slider-val">0%</div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-label" style="color:var(--gpu-light)">GPU</div>
+            <input type="range" class="slider gpu-slider" id="gpu-slider" min="0" max="100" value="0" oninput="onSliderChange('gpu',this.value)">
+            <div class="slider-val gpu" id="gpu-slider-val">0%</div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-label" style="color:var(--qpu-light)">QPU</div>
+            <input type="range" class="slider qpu-slider" id="qpu-slider" min="0" max="100" value="0" oninput="onSliderChange('qpu',this.value)">
+            <div class="slider-val qpu" id="qpu-slider-val">0%</div>
+          </div>
+          <div id="wl-detail-box" class="wl-detail hidden">
+            <div class="wl-detail-title">Workload Insight</div>
+            <div class="wl-detail-text" id="wl-detail-text"></div>
+          </div>
+          <button class="run-btn" onclick="runSimulation()">▶ Run Simulation & View Integration Output</button>
+        </div>
+
+        <div id="no-workload-msg" style="display:flex;align-items:center;justify-content:center;height:120px;color:var(--text3);font-size:13px;flex-direction:column;gap:8px">
+          <span style="font-size:32px">👆</span>
+          <span>Select a workload from the left panel</span>
+        </div>
+      </div>
+
+      <!-- Right: metrics -->
+      <div class="metrics-panel" id="metrics-panel">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px">Live Metrics</div>
+        <div class="metric-card">
+          <div class="metric-label">Latency</div>
+          <div class="metric-value" id="m-latency" style="color:var(--cpu-light)">--</div>
+          <div class="metric-sub" id="m-latency-sub">ms end-to-end</div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="m-latency-bar" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Throughput</div>
+          <div class="metric-value" id="m-throughput" style="color:var(--gpu-light)">--</div>
+          <div class="metric-sub" id="m-throughput-sub">ops/sec</div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="m-throughput-bar" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Energy Use</div>
+          <div class="metric-value" id="m-energy" style="color:var(--gold)">--</div>
+          <div class="metric-sub" id="m-energy-sub">kW normalized</div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="m-energy-bar" style="width:0%;background:linear-gradient(90deg,var(--gold),#fbbf24)"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Cost/Run</div>
+          <div class="metric-value" id="m-cost" style="color:var(--qpu-light)">--</div>
+          <div class="metric-sub" id="m-cost-sub">USD estimated</div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="m-cost-bar" style="width:0%;background:linear-gradient(90deg,var(--qpu),var(--qpu-light))"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Accuracy</div>
+          <div class="metric-value" id="m-accuracy" style="color:var(--gpu-light)">--</div>
+          <div class="metric-sub">model precision</div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="m-accuracy-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Books Page -->
+  <div id="panel-books" class="hidden books-page">
+    <div class="books-hero">
+      <div class="books-hero-title">Books by Nishant Prabhakar</div>
+      <div class="books-hero-sub">Decoding the intersection of capital, technology, and sovereignty — from private equity boardrooms to quantum computing labs.</div>
+    </div>
+    <div class="books-grid">
+
+      <div class="book-card" style="--bc1:#06b6d4;--bc2:#a855f7">
+        <div class="book-cover">
+          <div class="book-cover-art" style="background:linear-gradient(135deg,#0a1628,#0d2040)">
+            <div class="book-cover-icon">⚡</div>
+            <div style="font-size:13px;font-weight:800;text-align:center;padding:0 8px;line-height:1.2;color:#e2e8f0">The Compute Shift</div>
+            <div class="book-cover-num" style="color:#06b6d4">NISHANT PRABHAKAR</div>
+          </div>
+        </div>
+        <div class="book-info">
+          <div class="book-tag" style="background:rgba(6,182,212,0.1);color:#06b6d4;border:1px solid rgba(6,182,212,0.2)">⚡ The Quantum Capital Series · Technology</div>
+          <div class="book-title">The Compute Shift</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-style:italic">The Convergence of AI, HPC and Quantum Systems</div>
+          <div class="book-tagline">"Computing is no longer just about machines — it is becoming infrastructure."</div>
+          <div class="book-desc">The future of computing is described as a race to build better machines — faster processors, larger models, more powerful quantum systems. But something more fundamental is taking shape beneath that narrative. Computing is no longer just about machines; it is becoming infrastructure. High performance computing systems, AI accelerators, and quantum processors are being brought together into unified platforms, with each playing a different role and together creating a system more capable than any one technology alone — this is the hybrid compute era. The book explores that transition, examining how hybrid computing systems are structured, how they can be built, and how they may evolve into platforms that support industries across the world.</div>
+          <div class="book-themes">
+            <span class="book-theme">Hybrid Compute</span>
+            <span class="book-theme">AI Accelerators</span>
+            <span class="book-theme">HPC Systems</span>
+            <span class="book-theme">Quantum Infrastructure</span>
+            <span class="book-theme">Platform Economics</span>
+          </div>
+          <div class="book-actions">
+            <a href="https://www.amazon.in/dp/B0GT16PXLT?binding=kindle_edition&ref_=saga_dp_bnx_dsk_sdp" target="_blank" class="btn-buy">🛒 Buy on Amazon Kindle</a>
+            <a href="https://books2read.com/nishantprabhakar" target="_blank" class="btn-browse">All Retailers →</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="book-card" style="--bc1:#a855f7;--bc2:#7c3aed">
+        <div class="book-cover">
+          <div class="book-cover-art" style="background:linear-gradient(135deg,#160a28,#220d40)">
+            <div class="book-cover-icon">🏛</div>
+            <div style="font-size:13px;font-weight:800;text-align:center;padding:0 8px;line-height:1.2;color:#e2e8f0">The Sovereign Stack</div>
+            <div class="book-cover-num" style="color:#a855f7">NISHANT PRABHAKAR</div>
+          </div>
+        </div>
+        <div class="book-info">
+          <div class="book-tag" style="background:rgba(168,85,247,0.1);color:#c084fc;border:1px solid rgba(168,85,247,0.2)">🏛 The Quantum Capital Series · Geopolitics</div>
+          <div class="book-title">The Sovereign Stack</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-style:italic">National Infrastructure in the Age of Intelligent Systems</div>
+          <div class="book-tagline">"A country need not invent every component of the future of computing to shape it."</div>
+          <div class="book-desc">A country does not need to invent every component of the future of computing in order to shape it — but by building the right infrastructure, it can become the place where that future is realised. This book examines how nations are approaching technology sovereignty: the deliberate construction of domestic compute infrastructure, AI capability, and quantum-readiness as instruments of economic strategy and national resilience. Drawing on the author's experience at the intersection of deep-tech investment and policy, it explores what it means for a country to own its technological destiny in an era when compute is the new commanding height of the global economy.</div>
+          <div class="book-themes">
+            <span class="book-theme">Tech Sovereignty</span>
+            <span class="book-theme">National AI Strategy</span>
+            <span class="book-theme">Compute Infrastructure</span>
+            <span class="book-theme">Industrial Policy</span>
+            <span class="book-theme">Geopolitical Strategy</span>
+          </div>
+          <div class="book-actions">
+            <a href="https://books2read.com/nishantprabhakar" target="_blank" class="btn-buy">📖 Read on Books2Read</a>
+            <a href="https://books2read.com/nishantprabhakar" target="_blank" class="btn-browse">All Retailers →</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="book-card" style="--bc1:#10b981;--bc2:#0891b2">
+        <div class="book-cover">
+          <div class="book-cover-art" style="background:linear-gradient(135deg,#062014,#081a10)">
+            <div class="book-cover-icon">🚀</div>
+            <div style="font-size:13px;font-weight:800;text-align:center;padding:0 8px;line-height:1.2;color:#e2e8f0">The Next Frontier</div>
+            <div class="book-cover-num" style="color:#10b981">NISHANT PRABHAKAR</div>
+          </div>
+        </div>
+        <div class="book-info">
+          <div class="book-tag" style="background:rgba(16,185,129,0.1);color:#34d399;border:1px solid rgba(16,185,129,0.2)">🚀 Finance · Quantum Technology</div>
+          <div class="book-title">The Next Frontier</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-style:italic">Investing in Quantum Computing</div>
+          <div class="book-tagline">"Quantum computing is not a distant possibility — it is an investable reality taking shape right now."</div>
+          <div class="book-desc">An internationally published practitioner's guide to understanding and investing in quantum computing — written by a private equity investor with direct experience in deep-tech transactions. The book demystifies quantum hardware, algorithms, and error correction for a financial audience, then maps the emerging ecosystem of quantum companies, platforms, and enabling infrastructure. It examines where capital is flowing, which segments are closest to commercial viability, and how investors can position themselves ahead of the quantum advantage inflection point — without requiring a physics degree to do so.</div>
+          <div class="book-themes">
+            <span class="book-theme">Quantum Computing</span>
+            <span class="book-theme">Deep Tech Investing</span>
+            <span class="book-theme">QPU Hardware</span>
+            <span class="book-theme">Venture & Growth Equity</span>
+            <span class="book-theme">Quantum Ecosystem</span>
+          </div>
+          <div class="book-actions">
+            <a href="https://books2read.com/nishantprabhakar" target="_blank" class="btn-buy">📖 Read on Books2Read</a>
+            <a href="https://books2read.com/nishantprabhakar" target="_blank" class="btn-browse">All Retailers →</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="book-card" style="--bc1:#f59e0b;--bc2:#d97706">
+        <div class="book-cover">
+          <div class="book-cover-art" style="background:linear-gradient(135deg,#1a1000,#221800)">
+            <div class="book-cover-icon">💼</div>
+            <div style="font-size:13px;font-weight:800;text-align:center;padding:0 8px;line-height:1.2;color:#e2e8f0">Capital in the Shadows</div>
+            <div class="book-cover-num" style="color:#f59e0b">NISHANT PRABHAKAR</div>
+          </div>
+        </div>
+        <div class="book-info">
+          <div class="book-tag" style="background:rgba(245,158,11,0.1);color:#fbbf24;border:1px solid rgba(245,158,11,0.2)">💼 Finance · Private Equity</div>
+          <div class="book-title">Capital in the Shadows</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-style:italic">How Private Equity Shapes the Modern World</div>
+          <div class="book-tagline">"Private equity is the quiet force that reshapes industries, realigns incentives, and decides which companies survive."</div>
+          <div class="book-desc">The book begins with history, situating private equity within centuries of capital pooling, risk sharing, and active ownership. From there, it moves into the architecture of modern private equity: the strategies, deal structures, financial concepts, and operating playbooks that define the industry today. The narrative then shifts to context — how private equity behaves in different geographies, how it evolved in India, and how specific case studies illuminate both success and failure. Later chapters examine the perspective of limited partners and the human dimension of careers, culture, and decision-making inside firms. Throughout, recurring themes emerge: the importance of governance, the fragility of alignment, the tension between financial engineering and real value creation, and the necessity of humility in an industry that deals with uncertainty as its daily raw material.</div>
+          <div class="book-themes">
+            <span class="book-theme">Private Equity History</span>
+            <span class="book-theme">Deal Structures</span>
+            <span class="book-theme">India PE</span>
+            <span class="book-theme">Limited Partners</span>
+            <span class="book-theme">Governance & Alignment</span>
+          </div>
+          <div class="book-actions">
+            <a href="https://books2read.com/nishantprabhakar" target="_blank" class="btn-buy">📖 Read on Books2Read</a>
+            <a href="https://books2read.com/nishantprabhakar" target="_blank" class="btn-browse">All Retailers →</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div style="text-align:center;padding:20px 0 10px">
+      <a href="https://books2read.com/nishantprabhakar" target="_blank" class="btn-buy" style="display:inline-flex">🌐 View All Books on Books2Read</a>
+    </div>
+  </div>
+
+  <!-- Profile Page -->
+  <div id="panel-profile" class="hidden profile-page">
+    <div class="profile-hero">
+      <div class="profile-avatar"><img src="profile-photo.jpg" alt="Nishant Prabhakar"></div>
+      <div>
+        <div class="profile-name">Nishant Prabhakar</div>
+        <div class="profile-title">Private Equity Investor. Platform Builder. Author</div>
+        <div class="profile-bio">A veteran private equity investor and published author who combines practitioner expertise with strategic insight into global finance and technology. Nishant decodes complex financial systems without oversimplification, connecting the worlds of capital, AI infrastructure, sovereign computing, and quantum technologies into a coherent investment philosophy built around long-term structural themes.</div>
+        <div class="profile-tags">
+          <span class="profile-tag">Private Equity</span>
+          <span class="profile-tag">Deep Tech</span>
+          <span class="profile-tag">Quantum Computing</span>
+          <span class="profile-tag">AI Infrastructure</span>
+          <span class="profile-tag">Advanced Manufacturing</span>
+          <span class="profile-tag">Sovereign Technology</span>
+          <span class="profile-tag">Autonomous Systems</span>
+          <span class="profile-tag">Aerospace</span>
+        </div>
+        <div class="profile-links">
+          <a href="https://books2read.com/nishantprabhakar" target="_blank" class="profile-link primary">📚 Books2Read Profile</a>
+          <a href="https://www.amazon.in/dp/B0GT16PXLT?binding=kindle_edition&ref_=saga_dp_bnx_dsk_sdp" target="_blank" class="profile-link secondary">🛒 Amazon Author Page</a>
+          <button class="profile-link secondary" onclick="navTo('books')">📖 View All Books</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="profile-stats">
+      <div class="pstat"><div class="pstat-val">$25B+</div><div class="pstat-label">Aggregate AUM of Funds</div></div>
+      <div class="pstat"><div class="pstat-val">$2B+</div><div class="pstat-label">Aggregate Portfolio Managed</div></div>
+      <div class="pstat"><div class="pstat-val">$1B+</div><div class="pstat-label">Transactions Executed</div></div>
+      <div class="pstat"><div class="pstat-val">4</div><div class="pstat-label">Published Books</div></div>
+    </div>
+
+    <div class="profile-grid">
+      <div class="profile-card">
+        <div class="profile-card-title">💬 Themes from the Books</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.6;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:8px 12px">These are thematic summaries inspired by each book's core arguments — not verbatim passages from the texts.</div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <div style="background:var(--bg3);border:1px solid rgba(6,182,212,0.2);border-radius:14px;padding:18px;position:relative;overflow:hidden">
+            <div style="position:absolute;top:10px;right:14px;font-size:32px;opacity:0.07;font-family:Georgia,serif;line-height:1">"</div>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#06b6d4;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <span style="width:6px;height:6px;background:#06b6d4;border-radius:50%;display:inline-block"></span>The Compute Shift
+            </div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7;font-style:italic">"The scarcity of compute is not a temporary bottleneck — it is the defining constraint of the intelligence era. Every strategic decision made in the next decade will trace back, in some way, to who controls the chips, the power, and the algorithms."</div>
+          </div>
+
+          <div style="background:var(--bg3);border:1px solid rgba(168,85,247,0.2);border-radius:14px;padding:18px;position:relative;overflow:hidden">
+            <div style="position:absolute;top:10px;right:14px;font-size:32px;opacity:0.07;font-family:Georgia,serif;line-height:1">"</div>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#a855f7;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <span style="width:6px;height:6px;background:#a855f7;border-radius:50%;display:inline-block"></span>The Sovereign Stack
+            </div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7;font-style:italic">"A nation that cannot build its own models, run its own inference, or secure its own data pipelines has outsourced a piece of its sovereignty it may never recover. The sovereign stack is not infrastructure — it is statecraft."</div>
+          </div>
+
+          <div style="background:var(--bg3);border:1px solid rgba(16,185,129,0.2);border-radius:14px;padding:18px;position:relative;overflow:hidden">
+            <div style="position:absolute;top:10px;right:14px;font-size:32px;opacity:0.07;font-family:Georgia,serif;line-height:1">"</div>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#10b981;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <span style="width:6px;height:6px;background:#10b981;border-radius:50%;display:inline-block"></span>The Next Frontier
+            </div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7;font-style:italic">"The factories of the next decade will not be built of steel alone — they will be built of sensors, algorithms, and adaptive intelligence. The investor who understands this will find compounding returns where others see only capital expenditure."</div>
+          </div>
+
+          <div style="background:var(--bg3);border:1px solid rgba(245,158,11,0.2);border-radius:14px;padding:18px;position:relative;overflow:hidden">
+            <div style="position:absolute;top:10px;right:14px;font-size:32px;opacity:0.07;font-family:Georgia,serif;line-height:1">"</div>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#f59e0b;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <span style="width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>Capital in the Shadows
+            </div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7;font-style:italic">"Private equity is not financial engineering wearing a suit — it is the quiet force that reshapes industries, realigns incentives, and decides which companies survive the transition from one economic era to the next."</div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-card-title">🔬 Investment Focus Areas</div>
+        <div class="focus-grid">
+          <div class="focus-item">
+            <div class="focus-icon">⚡</div>
+            <div class="focus-name">AI &amp; Compute Infrastructure</div>
+            <div class="focus-desc">Data centers, GPU clusters, inference optimization, and compute scarcity dynamics</div>
+          </div>
+          <div class="focus-item">
+            <div class="focus-icon">🏛</div>
+            <div class="focus-name">Sovereign Tech Stacks</div>
+            <div class="focus-desc">National AI, semiconductor self-sufficiency, and strategic digital infrastructure</div>
+          </div>
+          <div class="focus-item">
+            <div class="focus-icon">🔮</div>
+            <div class="focus-name">Quantum &amp; Exascale</div>
+            <div class="focus-desc">QPU hardware, quantum algorithms, error correction, and post-classical HPC</div>
+          </div>
+          <div class="focus-item">
+            <div class="focus-icon">🤖</div>
+            <div class="focus-name">Autonomous Systems</div>
+            <div class="focus-desc">Industrial robotics, autonomous aerospace, and advanced manufacturing lines</div>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="profile-card">
+        <div class="profile-card-title">📚 Published Works</div>
+        <div class="books-mini-grid">
+          <a href="https://www.amazon.in/dp/B0GT16PXLT?binding=kindle_edition&ref_=saga_dp_bnx_dsk_sdp" target="_blank" class="book-mini">
+            <div class="book-mini-icon">⚡</div>
+            <div class="book-mini-title">The Compute Shift</div>
+            <div class="book-mini-genre">AI Infrastructure · Technology</div>
+          </a>
+          <a href="https://books2read.com/nishantprabhakar" target="_blank" class="book-mini">
+            <div class="book-mini-icon">🏛</div>
+            <div class="book-mini-title">The Sovereign Stack</div>
+            <div class="book-mini-genre">Geopolitics · Deep Tech</div>
+          </a>
+          <a href="https://books2read.com/nishantprabhakar" target="_blank" class="book-mini">
+            <div class="book-mini-icon">🚀</div>
+            <div class="book-mini-title">The Next Frontier</div>
+            <div class="book-mini-genre">Quantum Computing · Investment</div>
+          </a>
+          <a href="https://books2read.com/nishantprabhakar" target="_blank" class="book-mini">
+            <div class="book-mini-icon">💼</div>
+            <div class="book-mini-title">Capital in the Shadows</div>
+            <div class="book-mini-genre">Private Equity · Finance</div>
+          </a>
+        </div>
+        <div style="margin-top:16px;text-align:center">
+          <button onclick="navTo('books')" class="btn-browse" style="display:inline-flex;font-family:'Inter',sans-serif">Browse all books with descriptions →</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:linear-gradient(135deg,rgba(6,182,212,0.06),rgba(168,85,247,0.06));border:1px solid rgba(6,182,212,0.15);border-radius:20px;padding:32px;text-align:center;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);margin-bottom:16px">On Hybrid Compute</div>
+      <div style="font-size:20px;font-style:italic;color:var(--text);line-height:1.75;max-width:780px;margin:0 auto 20px;font-weight:300">"The future of computing is not a single architecture winning — it is the orchestration of many. Classical, parallel, and quantum systems will not compete; they will compose. The organisations that learn to conduct this hybrid symphony will solve problems the rest of the world still believes are impossible."</div>
+      <div style="font-size:13px;color:var(--text3);font-weight:600">— Nishant Prabhakar, <span style="color:var(--accent);font-style:italic">The Compute Shift</span></div>
+      <div style="margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="https://books2read.com/nishantprabhakar" target="_blank" class="profile-link primary">📚 Full Author Profile</a>
+        <button onclick="navTo('home')" class="profile-link secondary">⚙ Back to Simulator</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Integration Output -->
+  <div id="panel-integration" class="hidden">
+    <div class="section-title">Integration Output</div>
+    <div class="integration-panel">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="integration-title" id="int-title">Hybrid Compute Integration</div>
+          <div class="integration-sub" id="int-sub">Results from CPU, GPU, and QPU stages fused into unified output</div>
+        </div>
+        <button onclick="backToSim()" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 16px;color:var(--text2);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">← Back to Simulation</button>
+      </div>
+
+      <!-- Flow diagram -->
+      <div class="flow-container">
+        <svg class="flow-svg" id="flow-svg" viewBox="0 0 1200 180"></svg>
+      </div>
+
+      <div class="output-grid" id="output-grid"></div>
+
+      <div class="final-result" id="final-result">
+        <div class="fr-icon">🎯</div>
+        <div>
+          <div class="fr-title" id="fr-title">Integrated Solution</div>
+          <div class="fr-desc" id="fr-desc">Loading...</div>
+        </div>
+        <div class="fr-metric">
+          <div class="fr-metric-val" id="fr-metric-val">--</div>
+          <div class="fr-metric-label" id="fr-metric-label">overall improvement</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Sitewide Footer -->
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div>
+        <div class="footer-col-title">About This Tool</div>
+        <div class="footer-col-text">HybridCore is an interactive educational simulator designed to illustrate conceptual workload allocation across classical (CPU), parallel (GPU), and quantum (QPU) compute architectures across multiple industry verticals. It is intended solely for learning, exploration, and conceptual demonstration.</div>
+      </div>
+      <div>
+        <div class="footer-col-title">Author</div>
+        <div class="footer-col-text">
+          <strong style="color:var(--text2)">Nishant Prabhakar</strong><br>
+          Private Equity Investor. Platform Builder. Author.<br>
+          <a href="https://books2read.com/nishantprabhakar" target="_blank" style="color:var(--accent);text-decoration:none">books2read.com/nishantprabhakar</a><br>
+          <a href="https://www.amazon.in/dp/B0GT16PXLT?binding=kindle_edition" target="_blank" style="color:var(--accent);text-decoration:none">Available on Amazon Kindle</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Published Works</div>
+        <div class="footer-col-text">
+          <a href="https://www.amazon.in/dp/B0GT16PXLT?binding=kindle_edition" target="_blank" style="color:var(--text2);text-decoration:none;display:block;margin-bottom:4px">⚡ The Compute Shift</a>
+          <a href="https://books2read.com/nishantprabhakar" target="_blank" style="color:var(--text2);text-decoration:none;display:block;margin-bottom:4px">🏛 The Sovereign Stack</a>
+          <a href="https://books2read.com/nishantprabhakar" target="_blank" style="color:var(--text2);text-decoration:none;display:block;margin-bottom:4px">🚀 The Next Frontier: Investing in Quantum Computing</a>
+          <a href="https://books2read.com/nishantprabhakar" target="_blank" style="color:var(--text2);text-decoration:none;display:block">💼 Capital in the Shadows: How Private Equity Shapes the Modern World</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-disclaimer">
+      <strong>General Disclaimer &amp; Limitation of Liability.</strong> The content presented in this application — including but not limited to compute allocation models, performance metrics, latency estimates, cost projections, efficiency figures, integration output descriptions, and industry use-case scenarios — is provided strictly for <strong>educational and informational purposes only</strong>. Nothing contained herein constitutes, or should be construed as, (i) investment advice, financial advice, or a recommendation to buy, sell, or hold any security or financial instrument; (ii) technical specifications, product warranties, or performance guarantees of any hardware, software, or compute platform; (iii) legal, regulatory, tax, or compliance guidance of any kind; or (iv) a representation of actual results achievable by any organisation. All simulation outputs are <strong>illustrative estimates</strong> based on publicly available academic research, industry benchmarks, and modelling assumptions that may not reflect real-world conditions. Actual performance, costs, and outcomes will vary materially depending on hardware configurations, software stacks, workload characteristics, vendor platforms, and deployment environments. References to specific technologies (CPU, GPU, QPU), industries, or use cases are for conceptual illustration only and do not imply endorsement of any vendor or product. The author and creator of this application accept <strong>no liability whatsoever</strong> for any loss, damage, or adverse outcome — financial, technical, reputational, or otherwise — arising directly or indirectly from reliance on any content presented herein. Users are solely responsible for independently verifying all information before making any decision.
+    </div>
+
+    <div class="footer-disclaimer" style="margin-bottom:0">
+      <strong>Intellectual Property Notice.</strong> All original written content, book descriptions, author biographical information, and conceptual frameworks presented in this application are the intellectual property of Nishant Prabhakar. Book titles, synopses, and associated content are reproduced for authorial attribution purposes. The <em>The Quantum Capital</em> series, including <em>The Compute Shift</em> and <em>The Sovereign Stack</em>, and the works <em>The Next Frontier: Investing in Quantum Computing</em> and <em>Capital in the Shadows: How Private Equity Shapes the Modern World</em>, are internationally published works protected under applicable copyright law. Unauthorised reproduction, distribution, or commercial use of any content derived from these works is strictly prohibited.
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-copy">© <span id="footer-year"></span> <span>Nishant Prabhakar</span>. All Rights Reserved. HybridCore Hybrid Compute Simulator.</div>
+      <div class="footer-links">
+        <a href="https://books2read.com/nishantprabhakar" target="_blank" class="footer-link">Books2Read</a>
+        <a href="https://www.amazon.in/dp/B0GT16PXLT?binding=kindle_edition" target="_blank" class="footer-link">Amazon</a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const DATA = {
+  industrials: {
+    name: "Industrials",
+    icon: "⚙",
+    color: "#3b82f6",
+    desc: "Manufacturing, robotics, and industrial automation systems",
+    tag: "Manufacturing",
+    subsectors: {
+      smart_mfg: {
+        name: "Smart Manufacturing",
+        hint: "AI-driven production lines",
+        workloads: [
+          { name: "Production Schedule Optimization", cpu: 15, gpu: 25, qpu: 60,
+            cpuTasks: "ERP integration, data parsing", gpuTasks: "Demand forecasting ML", qpuTasks: "Combinatorial scheduling",
+            desc: "QPU solves NP-hard scheduling problems across 10,000+ machine states simultaneously using quantum annealing.",
+            latency: 120, throughput: 4200, energy: 3.8, cost: 2.40, accuracy: 97.2 },
+          { name: "Digital Twin Simulation", cpu: 30, gpu: 55, qpu: 15,
+            cpuTasks: "Physics engine, state sync", gpuTasks: "Real-time 3D rendering, ML anomaly", qpuTasks: "Uncertainty modeling",
+            desc: "GPU renders high-fidelity digital replicas at 60fps while CPU manages sensor data ingestion from 500+ IoT endpoints.",
+            latency: 45, throughput: 18000, energy: 8.2, cost: 5.10, accuracy: 94.8 },
+          { name: "Computer Vision QC", cpu: 10, gpu: 87, qpu: 3,
+            cpuTasks: "Image preprocessing, logging", gpuTasks: "Defect detection CNN, segmentation", qpuTasks: "Edge-case sampling",
+            desc: "Deep learning models on GPU inspect 200 parts/minute at micron precision, reducing defect escape rate by 94%.",
+            latency: 8, throughput: 200000, energy: 6.5, cost: 1.80, accuracy: 99.1 },
+          { name: "Predictive Maintenance", cpu: 25, gpu: 50, qpu: 25,
+            cpuTasks: "Sensor ingestion, alerting", gpuTasks: "Vibration pattern LSTM", qpuTasks: "Failure probability estimation",
+            desc: "Hybrid model predicts equipment failure 72 hours in advance with QPU handling multi-factor correlation across 1M+ sensor readings.",
+            latency: 380, throughput: 1200, energy: 4.1, cost: 3.20, accuracy: 96.4 }
+        ],
+        integration: { title: "Manufacturing Intelligence Platform",
+          sub: "Fused output drives autonomous factory decisions with 31% OEE improvement",
+          outputs: [
+            { type: "CPU", title: "Operational Commands", desc: "ERP-synchronized schedules, shift plans, and maintenance alerts pushed to floor operators", val: "12K+ cmds/hr" },
+            { type: "GPU", title: "Predictive Insights", desc: "Real-time anomaly scores, quality grades, and digital twin state fed into SCADA systems", val: "99.1% accuracy" },
+            { type: "QPU", title: "Optimized Schedules", desc: "Quantum-optimal production plans with 23% throughput gain over classical solvers", val: "23% throughput ↑" }
+          ],
+          final: "Autonomous factory achieves 31% OEE improvement and $4.2M annual cost reduction",
+          metric: "31% OEE", metricLabel: "efficiency improvement"
+        }
+      },
+      robotics: {
+        name: "Industrial Robotics",
+        hint: "Autonomous robot fleets",
+        workloads: [
+          { name: "Path Planning & Navigation", cpu: 20, gpu: 40, qpu: 40,
+            cpuTasks: "ROS control, sensor fusion", gpuTasks: "Obstacle detection, SLAM", qpuTasks: "Optimal route search",
+            desc: "QPU solves multi-robot path planning in dense environments, eliminating deadlocks 40% faster than classical A* algorithms.",
+            latency: 12, throughput: 8000, energy: 5.2, cost: 2.90, accuracy: 98.3 },
+          { name: "Grasp & Manipulation", cpu: 15, gpu: 75, qpu: 10,
+            cpuTasks: "Gripper control signals", gpuTasks: "6DOF pose estimation, force feedback", qpuTasks: "Grasp quality sampling",
+            desc: "GPU-accelerated vision estimates object pose in 8ms enabling dexterous manipulation of 500+ SKUs with 99.4% pick success.",
+            latency: 8, throughput: 3600, energy: 7.8, cost: 3.40, accuracy: 99.4 },
+          { name: "Multi-Robot Coordination", cpu: 25, gpu: 20, qpu: 55,
+            cpuTasks: "Task dispatch, collision avoidance", gpuTasks: "Fleet monitoring dashboard", qpuTasks: "Swarm optimization QUBO",
+            desc: "Quantum QUBO formulation coordinates 500+ robots as single coherent swarm, maximizing warehouse throughput per m².",
+            latency: 95, throughput: 2100, energy: 3.4, cost: 4.80, accuracy: 95.7 },
+          { name: "Welding & Assembly Inspection", cpu: 10, gpu: 85, qpu: 5,
+            cpuTasks: "Spec comparison, report gen", gpuTasks: "Thermal imaging CNN, point cloud", qpuTasks: "Statistical sampling",
+            desc: "Multi-spectral GPU vision detects sub-millimeter weld defects and verifies assembly torque specs at line speed.",
+            latency: 15, throughput: 120000, energy: 9.1, cost: 2.10, accuracy: 99.8 }
+        ],
+        integration: { title: "Autonomous Robot Fleet OS",
+          sub: "Coordinated swarm intelligence delivering 5x throughput per sq ft vs manual operations",
+          outputs: [
+            { type: "CPU", title: "Real-time Control", desc: "Low-latency servo commands and safety interlocks maintaining <5ms response to floor conditions", val: "<5ms control loop" },
+            { type: "GPU", title: "Perception Pipeline", desc: "360° environmental awareness fused from 50+ cameras enabling collision-free dense packing", val: "50+ camera feeds" },
+            { type: "QPU", title: "Swarm Intelligence", desc: "Optimal task allocation across robot fleet eliminating 90% of idle time and deadlock scenarios", val: "90% idle ↓" }
+          ],
+          final: "Robot fleet achieves 5x throughput at 99.4% uptime, recouping CapEx in 18 months",
+          metric: "5x", metricLabel: "throughput improvement"
+        }
+      }
+    }
+  },
+
+  drug_discovery: {
+    name: "Drug Discovery",
+    icon: "🧬",
+    color: "#10b981",
+    desc: "Molecular simulation, genomics, and clinical research pipelines",
+    tag: "Life Sciences",
+    subsectors: {
+      mol_sim: {
+        name: "Molecular Simulation",
+        hint: "Protein folding & binding",
+        workloads: [
+          { name: "Protein Structure Prediction", cpu: 15, gpu: 45, qpu: 40,
+            cpuTasks: "Sequence parsing, MSA building", gpuTasks: "AlphaFold2 inference, structure relaxation", qpuTasks: "Conformational sampling",
+            desc: "QPU samples exponentially many conformational states simultaneously, resolving structures that classical MD gets stuck in local minima on.",
+            latency: 8400, throughput: 12, energy: 18.4, cost: 142, accuracy: 93.2 },
+          { name: "Virtual Drug Screening", cpu: 20, gpu: 65, qpu: 15,
+            cpuTasks: "Database preprocessing, filtering", gpuTasks: "Docking simulation, scoring", qpuTasks: "Binding affinity QML",
+            desc: "GPU-accelerated molecular docking screens 10M+ compounds/day; QPU quantum ML refines binding affinities for top candidates.",
+            latency: 2100, throughput: 415, energy: 14.2, cost: 89, accuracy: 88.6 },
+          { name: "Quantum Chemistry Simulation", cpu: 10, gpu: 30, qpu: 60,
+            cpuTasks: "Classical force field setup", gpuTasks: "DFT preprocessing", qpuTasks: "VQE electron correlation",
+            desc: "VQE on QPU solves Schrödinger equation for drug-target complexes with exponential speedup over classical quantum chemistry methods.",
+            latency: 24000, throughput: 4, energy: 22.1, cost: 380, accuracy: 99.3 },
+          { name: "ADMET Property Prediction", cpu: 20, gpu: 72, qpu: 8,
+            cpuTasks: "Feature engineering, logging", gpuTasks: "Graph neural network inference", qpuTasks: "Uncertainty quantification",
+            desc: "GNN on GPU predicts absorption, distribution, metabolism, excretion, and toxicity for entire compound libraries in hours not months.",
+            latency: 340, throughput: 2800, energy: 7.8, cost: 28, accuracy: 91.4 }
+        ],
+        integration: { title: "Computational Drug Discovery Pipeline",
+          sub: "End-to-end simulation cuts time-to-candidate from 4 years to 14 months",
+          outputs: [
+            { type: "CPU", title: "Data Infrastructure", desc: "Curated chemical databases, sequence alignments, and experimental data pipelines feeding all compute stages", val: "10M+ compounds" },
+            { type: "GPU", title: "Candidate Library", desc: "Top 10,000 ranked compounds with predicted binding poses, selectivity profiles, and ADMET scores", val: "10K candidates →50" },
+            { type: "QPU", title: "Quantum Accuracy", desc: "Chemically accurate binding energies and electronic structure details for shortlisted drug candidates", val: "99.3% accuracy" }
+          ],
+          final: "5 IND-ready candidates identified from 10M compounds in 14 months, 70% faster than conventional approach",
+          metric: "70%", metricLabel: "faster time-to-candidate"
+        }
+      },
+      genomics: {
+        name: "Genomics & Precision Medicine",
+        hint: "Variant analysis & personalized therapy",
+        workloads: [
+          { name: "Variant Calling & Annotation", cpu: 40, gpu: 55, qpu: 5,
+            cpuTasks: "BWA alignment, VCF processing", gpuTasks: "Deep-variant CNN, parallelized GATK", qpuTasks: "Rare variant scoring",
+            desc: "GPU-accelerated variant calling reduces whole-genome analysis from 30 hours to 45 minutes, enabling same-day clinical decisions.",
+            latency: 2700, throughput: 95, energy: 11.2, cost: 62, accuracy: 97.8 },
+          { name: "Patient Stratification", cpu: 25, gpu: 40, qpu: 35,
+            cpuTasks: "EHR ingestion, phenotype extraction", gpuTasks: "Transformer embeddings, clustering", qpuTasks: "Quantum k-means, community detection",
+            desc: "Quantum clustering finds patient subgroups in 1000-dimensional genomic space that classical methods miss, enabling precision dosing.",
+            latency: 4800, throughput: 38, energy: 8.6, cost: 95, accuracy: 89.4 },
+          { name: "Drug Response Prediction", cpu: 20, gpu: 60, qpu: 20,
+            cpuTasks: "Pathway analysis, feature prep", gpuTasks: "Multi-omics fusion DNN", qpuTasks: "Treatment optimization",
+            desc: "Fused multi-omics model predicts which patients respond to targeted therapy, increasing trial success rates from 12% to 34%.",
+            latency: 1200, throughput: 180, energy: 9.4, cost: 78, accuracy: 86.2 },
+          { name: "Protein-Protein Interaction", cpu: 15, gpu: 50, qpu: 35,
+            cpuTasks: "Database querying, graph prep", gpuTasks: "Graph transformer, contact prediction", qpuTasks: "Network centrality (QUBO)",
+            desc: "Quantum graph algorithms identify key disease network hubs 50x faster than classical methods, revealing novel drug targets.",
+            latency: 6200, throughput: 22, energy: 12.8, cost: 110, accuracy: 92.1 }
+        ],
+        integration: { title: "Precision Medicine Intelligence System",
+          sub: "Genomics + clinical data fusion enabling individualized treatment at scale",
+          outputs: [
+            { type: "CPU", title: "Clinical Integration", desc: "FHIR-compliant reports integrated into hospital EHR systems for physician decision support at point of care", val: "FHIR compliant" },
+            { type: "GPU", title: "Genomic Profiles", desc: "Complete mutational landscapes, expression signatures, and pathway activation maps for each patient cohort", val: "50M variants/hr" },
+            { type: "QPU", title: "Treatment Plans", desc: "Personalized drug combinations optimized for efficacy and minimal toxicity across 1000s of interaction parameters", val: "3x response rate" }
+          ],
+          final: "Precision treatment plans increase trial enrollment efficiency by 60% and response rates by 3x",
+          metric: "3x", metricLabel: "treatment response rate"
+        }
+      }
+    }
+  },
+
+  financials: {
+    name: "Financials",
+    icon: "📈",
+    color: "#f59e0b",
+    desc: "Portfolio optimization, risk modeling, and algorithmic trading",
+    tag: "Investment",
+    subsectors: {
+      portfolio: {
+        name: "Portfolio Optimization",
+        hint: "Multi-asset allocation",
+        workloads: [
+          { name: "Mean-Variance Optimization", cpu: 20, gpu: 35, qpu: 45,
+            cpuTasks: "Data fetching, covariance matrix", gpuTasks: "Monte Carlo simulation", qpuTasks: "QUBO portfolio selection",
+            desc: "Quantum annealing solves portfolio optimization across 5000+ assets simultaneously, finding Pareto-optimal frontier in seconds vs hours.",
+            latency: 180, throughput: 2400, energy: 2.8, cost: 1.20, accuracy: 96.8 },
+          { name: "Factor Risk Decomposition", cpu: 35, gpu: 55, qpu: 10,
+            cpuTasks: "Factor model calibration", gpuTasks: "PCA/ICA on returns tensor", qpuTasks: "Quantum PCA",
+            desc: "GPU-accelerated tensor decomposition extracts 200+ risk factors from decades of tick data, enabling attribution across all market regimes.",
+            latency: 420, throughput: 8600, energy: 5.4, cost: 3.80, accuracy: 94.2 },
+          { name: "Scenario Stress Testing", cpu: 25, gpu: 60, qpu: 15,
+            cpuTasks: "Scenario definition, reporting", gpuTasks: "10M path Monte Carlo", qpuTasks: "Fat-tail sampling",
+            desc: "GPU runs 10 million market scenarios overnight; QPU generates rare but plausible stress scenarios in fat tails of the distribution.",
+            latency: 1800, throughput: 5500, energy: 11.2, cost: 8.40, accuracy: 92.6 },
+          { name: "ESG Constraint Optimization", cpu: 20, gpu: 30, qpu: 50,
+            cpuTasks: "ESG data ingestion, scoring", gpuTasks: "NLP on ESG reports", qpuTasks: "Constrained QUBO optimization",
+            desc: "Quantum solver handles 500+ ESG constraints alongside financial objectives, finding solutions classical solvers declare infeasible.",
+            latency: 290, throughput: 1800, energy: 3.1, cost: 2.60, accuracy: 95.4 }
+        ],
+        integration: { title: "Quantitative Portfolio Management System",
+          sub: "Multi-objective optimization across risk, return, and ESG simultaneously",
+          outputs: [
+            { type: "CPU", title: "Risk Reports", desc: "Daily VaR/CVaR reports, factor exposures, and compliance checks distributed to portfolio managers and regulators", val: "$2.4B AUM managed" },
+            { type: "GPU", title: "Market Signals", desc: "Real-time alpha signals from price, volume, and alternative data processed at sub-second latency", val: "1.4M signals/day" },
+            { type: "QPU", title: "Optimal Allocations", desc: "Quantum-optimal weights satisfying all constraints with Sharpe ratio improvements of 18-34% over benchmark", val: "+28% Sharpe ratio" }
+          ],
+          final: "Quantum-enhanced portfolio achieves 28% Sharpe improvement over classical approach, managing $2.4B AUM",
+          metric: "+28%", metricLabel: "Sharpe ratio improvement"
+        }
+      },
+      hft: {
+        name: "High-Frequency Trading",
+        hint: "Ultra-low latency execution",
+        workloads: [
+          { name: "Order Book Analysis", cpu: 15, gpu: 80, qpu: 5,
+            cpuTasks: "FIX protocol, order routing", gpuTasks: "Real-time L2 pattern detection", qpuTasks: "Microstructure noise",
+            desc: "FPGA-GPU hybrid processes 50M order book events/second with sub-microsecond latency for tick-level alpha capture.",
+            latency: 0.8, throughput: 50000000, energy: 12.4, cost: 0.002, accuracy: 89.4 },
+          { name: "Latency Arbitrage", cpu: 30, gpu: 65, qpu: 5,
+            cpuTasks: "Cross-venue position management", gpuTasks: "Price discrepancy detection", qpuTasks: "Optimal execution sizing",
+            desc: "GPU identifies price discrepancies across 40+ venues in <1μs, executing arb before the window closes.",
+            latency: 0.4, throughput: 82000000, energy: 14.8, cost: 0.001, accuracy: 97.2 },
+          { name: "Statistical Arbitrage", cpu: 40, gpu: 50, qpu: 10,
+            cpuTasks: "Cointegration testing, PnL", gpuTasks: "Pairs trading signals", qpuTasks: "Correlation clustering",
+            desc: "GPU-accelerated cointegration analysis across 10,000+ equity pairs in real-time, maintaining 200+ concurrent positions.",
+            latency: 12, throughput: 420000, energy: 8.6, cost: 0.08, accuracy: 91.8 },
+          { name: "Market Impact Modeling", cpu: 30, gpu: 45, qpu: 25,
+            cpuTasks: "Execution analytics, TCA", gpuTasks: "Almgren-Chriss DNN", qpuTasks: "Optimal trajectory sampling",
+            desc: "Quantum-enhanced optimal execution minimizes market impact for large orders, reducing slippage by 34% vs TWAP benchmarks.",
+            latency: 85, throughput: 28000, energy: 4.2, cost: 0.42, accuracy: 93.6 }
+        ],
+        integration: { title: "Ultra-Low Latency Trading Infrastructure",
+          sub: "Microsecond-grade decision engine capturing 200+ bps alpha across strategies",
+          outputs: [
+            { type: "CPU", title: "Risk Engine", desc: "Real-time PnL, Greeks, and position limits enforced at nanosecond granularity across all strategies", val: "200+ strategies live" },
+            { type: "GPU", title: "Signal Engine", desc: "Continuous alpha signal generation from order flow, microstructure, and alternative data streams", val: "0.4μs latency" },
+            { type: "QPU", title: "Execution Optimizer", desc: "Quantum-optimal order routing and sizing reducing market impact and maximizing fill quality", val: "34% less slippage" }
+          ],
+          final: "HFT platform captures 220+ bps annual alpha with 99.97% uptime and sub-microsecond execution",
+          metric: "220bps", metricLabel: "annual alpha captured"
+        }
+      }
+    }
+  },
+
+  logistics: {
+    name: "Logistics",
+    icon: "🚚",
+    color: "#06b6d4",
+    desc: "Supply chain, route optimization, and fleet management systems",
+    tag: "Supply Chain",
+    subsectors: {
+      routing: {
+        name: "Route Optimization",
+        hint: "Last-mile & long-haul",
+        workloads: [
+          { name: "Vehicle Routing Problem (VRP)", cpu: 15, gpu: 25, qpu: 60,
+            cpuTasks: "Map data loading, constraint parsing", gpuTasks: "Heuristic search parallelization", qpuTasks: "QUBO VRP solver",
+            desc: "Quantum annealing solves 10,000-stop VRP with 50+ constraints (time windows, capacity, driver hours) in 2 seconds vs 8 hours classically.",
+            latency: 2100, throughput: 480, energy: 3.6, cost: 1.80, accuracy: 98.4 },
+          { name: "Real-Time Traffic Rerouting", cpu: 30, gpu: 55, qpu: 15,
+            cpuTasks: "Traffic API integration, ETA calc", gpuTasks: "Graph neural network routing", qpuTasks: "Dynamic re-optimization",
+            desc: "GNN on GPU continuously updates 50,000+ route segments with real-time incident data, triggering quantum re-optimization on major disruptions.",
+            latency: 340, throughput: 12000, energy: 7.2, cost: 0.90, accuracy: 94.6 },
+          { name: "Multi-Modal Transport Planning", cpu: 25, gpu: 35, qpu: 40,
+            cpuTasks: "Mode cost calculation, booking API", gpuTasks: "Demand prediction transformer", qpuTasks: "Modal mix optimization",
+            desc: "QPU optimizes freight split across road, rail, air, and sea under 200+ constraints, cutting total logistics cost by 22%.",
+            latency: 4800, throughput: 220, energy: 4.8, cost: 3.40, accuracy: 91.8 },
+          { name: "Warehouse Pick Path Optimization", cpu: 20, gpu: 30, qpu: 50,
+            cpuTasks: "WMS order batching", gpuTasks: "Computer vision pick guidance", qpuTasks: "TSP quantum solver",
+            desc: "Quantum TSP solver minimizes picker travel distance by 38% across 100K+ SKU warehouses, handling wave releases in <500ms.",
+            latency: 480, throughput: 1800, energy: 2.4, cost: 0.60, accuracy: 96.2 }
+        ],
+        integration: { title: "Intelligent Logistics Orchestration Platform",
+          sub: "End-to-end supply chain optimization from warehouse to doorstep",
+          outputs: [
+            { type: "CPU", title: "Dispatch Console", desc: "Driver assignments, load manifests, and customer notifications synchronized across TMS and carrier APIs", val: "50K routes/day" },
+            { type: "GPU", title: "Predictive Analytics", desc: "Demand forecasts, delay predictions, and carrier performance scores updated every 15 minutes", val: "94.6% ETA accuracy" },
+            { type: "QPU", title: "Optimized Routes", desc: "Quantum-optimal daily plans reducing total fleet distance by 31% and fuel consumption by 28%", val: "31% distance ↓" }
+          ],
+          final: "Logistics platform reduces total fleet cost by 31%, CO₂ emissions by 28%, and on-time delivery climbs to 97.8%",
+          metric: "31%", metricLabel: "total logistics cost reduction"
+        }
+      },
+      supply_chain: {
+        name: "Supply Chain Management",
+        hint: "Inventory & demand planning",
+        workloads: [
+          { name: "Demand Forecasting", cpu: 20, gpu: 72, qpu: 8,
+            cpuTasks: "Historical data ETL, seasonality", gpuTasks: "Temporal fusion transformer", qpuTasks: "Uncertainty ensemble",
+            desc: "TFT model on GPU ingests 5 years of POS, weather, and macroeconomic data to produce 13-week forecasts at SKU-location level.",
+            latency: 680, throughput: 4200, energy: 8.4, cost: 2.20, accuracy: 93.8 },
+          { name: "Inventory Optimization", cpu: 20, gpu: 30, qpu: 50,
+            cpuTasks: "Safety stock calculation", gpuTasks: "Simulation of demand scenarios", qpuTasks: "Multi-echelon QUBO",
+            desc: "Quantum solver optimizes safety stock levels across 50 DC locations and 100K+ SKUs, reducing working capital by $180M.",
+            latency: 5400, throughput: 180, energy: 5.6, cost: 4.80, accuracy: 95.2 },
+          { name: "Supplier Risk Assessment", cpu: 35, gpu: 45, qpu: 20,
+            cpuTasks: "Contract parsing, financial data", gpuTasks: "NLP news risk scoring", qpuTasks: "Dependency graph analysis",
+            desc: "NLP scans 50K news sources daily; quantum graph analysis identifies hidden supply dependencies and cascade failure risks.",
+            latency: 2400, throughput: 580, energy: 6.2, cost: 3.60, accuracy: 88.4 },
+          { name: "Procurement Optimization", cpu: 25, gpu: 25, qpu: 50,
+            cpuTasks: "RFQ processing, compliance checks", gpuTasks: "Bid analysis, spend analytics", qpuTasks: "Supplier award QUBO",
+            desc: "QUBO formulation optimally awards procurement contracts across 500 suppliers and 10,000 line items satisfying all sourcing policies.",
+            latency: 7200, throughput: 95, energy: 4.8, cost: 6.20, accuracy: 97.4 }
+        ],
+        integration: { title: "Cognitive Supply Chain Platform",
+          sub: "Self-healing supply network with autonomous demand-supply balancing",
+          outputs: [
+            { type: "CPU", title: "Operational Workflows", desc: "Automated POs, replenishment triggers, and supplier communications executed across SAP and Oracle ERP", val: "Zero-touch POs" },
+            { type: "GPU", title: "Risk Intelligence", desc: "Live supply risk dashboard with disruption alerts, alternative supplier recommendations, and impact estimates", val: "48hr early warning" },
+            { type: "QPU", title: "Optimal Sourcing", desc: "Quantum-optimal procurement decisions balancing cost, risk, and ESG across entire supplier network", val: "$180M WC freed" }
+          ],
+          final: "Cognitive supply chain frees $180M working capital, reduces stockouts by 64%, and provides 48hr disruption lead time",
+          metric: "64%", metricLabel: "stockout reduction"
+        }
+      }
+    }
+  },
+
+  power: {
+    name: "Power & Energy",
+    icon: "⚡",
+    color: "#a855f7",
+    desc: "Grid management, renewable energy, and nuclear simulation",
+    tag: "Energy",
+    subsectors: {
+      grid: {
+        name: "Smart Grid Optimization",
+        hint: "Load balancing & dispatch",
+        workloads: [
+          { name: "Unit Commitment & Dispatch", cpu: 20, gpu: 25, qpu: 55,
+            cpuTasks: "SCADA integration, constraint loading", gpuTasks: "Load forecasting LSTM", qpuTasks: "Unit commitment QUBO",
+            desc: "Quantum annealing solves 24-hour unit commitment for 500+ generation units in under 30 seconds vs 4 hours classically.",
+            latency: 28000, throughput: 24, energy: 4.8, cost: 8.40, accuracy: 97.6 },
+          { name: "Renewable Energy Forecasting", cpu: 25, gpu: 65, qpu: 10,
+            cpuTasks: "NWP data processing, SCADA sync", gpuTasks: "Spatiotemporal attention model", qpuTasks: "Uncertainty quantification",
+            desc: "Deep learning model ingests 10,000+ weather sensors to forecast wind/solar output at 15-min intervals 72 hours ahead.",
+            latency: 1200, throughput: 2800, energy: 9.2, cost: 4.60, accuracy: 95.8 },
+          { name: "Demand Response Optimization", cpu: 20, gpu: 30, qpu: 50,
+            cpuTasks: "Smart meter ingestion, billing", gpuTasks: "Consumer behavior segmentation", qpuTasks: "Real-time DR allocation",
+            desc: "QPU allocates demand response across 10M smart meters optimally in real-time, shaving 15% peak demand without user disruption.",
+            latency: 8400, throughput: 580, energy: 6.4, cost: 5.80, accuracy: 94.2 },
+          { name: "Fault Detection & Isolation", cpu: 35, gpu: 55, qpu: 10,
+            cpuTasks: "Protection relay logic, logging", gpuTasks: "PMU time series anomaly detection", qpuTasks: "Fault location optimization",
+            desc: "GPU processes 1M phasor measurements/second to detect and isolate faults in <100ms, preventing cascading blackouts.",
+            latency: 85, throughput: 1000000, energy: 12.4, cost: 2.20, accuracy: 99.4 }
+        ],
+        integration: { title: "Autonomous Grid Intelligence System",
+          sub: "Self-balancing smart grid with quantum-optimal dispatch and millisecond fault response",
+          outputs: [
+            { type: "CPU", title: "Grid Control", desc: "EMS/SCADA commands for generation dispatch, switching operations, and frequency regulation executed at grid speed", val: "500+ units managed" },
+            { type: "GPU", title: "Situational Awareness", desc: "Real-time grid state estimation, N-1 contingency analysis, and renewable generation forecasts on operator displays", val: "99.4% fault detect" },
+            { type: "QPU", title: "Optimal Dispatch", desc: "Quantum-optimal unit commitment cutting operational cost by 18% while maintaining N-1 reliability standards", val: "18% cost ↓" }
+          ],
+          final: "Smart grid reduces operational costs by 18%, integrates 40% more renewables, and improves reliability to 99.97%",
+          metric: "99.97%", metricLabel: "grid reliability"
+        }
+      },
+      nuclear: {
+        name: "Nuclear Plant Simulation",
+        hint: "Reactor physics & safety",
+        workloads: [
+          { name: "Neutron Transport Simulation", cpu: 20, gpu: 40, qpu: 40,
+            cpuTasks: "Monte Carlo setup, geometry mesh", gpuTasks: "Parallel particle tracking", qpuTasks: "Quantum Monte Carlo",
+            desc: "Quantum Monte Carlo achieves 1000x speedup on neutron flux calculations, enabling real-time core state monitoring.",
+            latency: 48000, throughput: 6, energy: 28.4, cost: 420, accuracy: 99.8 },
+          { name: "Thermal-Hydraulic Analysis", cpu: 30, gpu: 65, qpu: 5,
+            cpuTasks: "CFD meshing, boundary conditions", gpuTasks: "GPU-accelerated CFD solver", qpuTasks: "Turbulence sampling",
+            desc: "GPU-accelerated CFD resolves coolant flow in full-core 3D models in hours, enabling safety margin analysis for all transients.",
+            latency: 18000, throughput: 18, energy: 42.8, cost: 280, accuracy: 98.2 },
+          { name: "Fuel Cycle Optimization", cpu: 25, gpu: 20, qpu: 55,
+            cpuTasks: "Burnup calculation, enrichment data", gpuTasks: "Core loading pattern screening", qpuTasks: "Fuel shuffle QUBO",
+            desc: "Quantum solver finds optimal fuel loading pattern satisfying 1000+ constraints (peaking, shutdown margin, cycle length).",
+            latency: 72000, throughput: 2, energy: 18.2, cost: 680, accuracy: 96.4 },
+          { name: "Severe Accident Progression", cpu: 25, gpu: 55, qpu: 20,
+            cpuTasks: "MELCOR/MAAP integration", gpuTasks: "Parallel severe accident trees", qpuTasks: "Uncertainty propagation",
+            desc: "GPU runs 100,000 accident progression scenarios in parallel for probabilistic risk assessment; QPU propagates epistemic uncertainty.",
+            latency: 86400, throughput: 1, energy: 38.6, cost: 940, accuracy: 97.1 }
+        ],
+        integration: { title: "Digital Nuclear Safety Platform",
+          sub: "Physics-accurate simulation enabling 60-year plant life extension and next-gen reactor design",
+          outputs: [
+            { type: "CPU", title: "Safety Cases", desc: "Regulatory-ready deterministic and probabilistic safety analysis reports satisfying NRC/IAEA standards", val: "NRC/IAEA compliant" },
+            { type: "GPU", title: "Core Monitoring", desc: "Real-time 3D visualization of reactor core state, power distribution, and thermal margins for operators", val: "Real-time 3D core" },
+            { type: "QPU", title: "Optimal Fuel Plans", desc: "Quantum-optimal fuel cycles maximizing energy output while minimizing fuel cost and waste generation", val: "12% more energy/kg" }
+          ],
+          final: "Digital twin enables 20-year plant life extension, 12% more energy per kg fuel, and 60% faster regulatory approval",
+          metric: "20yr", metricLabel: "plant life extension"
+        }
+      }
+    }
+  },
+
+  defence: {
+    name: "Defence & Aerospace",
+    icon: "🛡",
+    color: "#64748b",
+    desc: "Mission planning, radar intelligence, autonomous systems, and PQC",
+    tag: "Defence",
+    subsectors: {
+      mission: {
+        name: "Mission Planning & C2",
+        hint: "Command, control & autonomous ops",
+        workloads: [
+          { name: "Multi-Domain Mission Optimisation", cpu: 15, gpu: 25, qpu: 60,
+            cpuTasks: "Battlespace data fusion, C2 APIs", gpuTasks: "Terrain rendering, threat modelling", qpuTasks: "QUBO multi-domain routing",
+            desc: "Quantum annealing solves multi-domain asset assignment across air, land, sea, space, and cyber simultaneously — a combinatorial problem classically intractable at operational scale.",
+            latency: 4200, throughput: 180, energy: 6.2, cost: 12.40, accuracy: 96.8 },
+          { name: "Post-Quantum Cryptography Migration", cpu: 35, gpu: 30, qpu: 35,
+            cpuTasks: "Protocol management, PKI migration", gpuTasks: "Lattice-based crypto acceleration", qpuTasks: "Quantum key distribution simulation",
+            desc: "Hybrid classical-quantum pipeline transitions legacy defence comms infrastructure to NIST PQC standards (CRYSTALS-Kyber/Dilithium) while maintaining operational continuity.",
+            latency: 28, throughput: 42000, energy: 4.8, cost: 0.18, accuracy: 99.9 },
+          { name: "Autonomous Swarm Coordination", cpu: 20, gpu: 35, qpu: 45,
+            cpuTasks: "Rules of engagement logic, telemetry", gpuTasks: "Computer vision, obstacle avoidance", qpuTasks: "Swarm task allocation QUBO",
+            desc: "Quantum QUBO coordinates 1000+ autonomous agents as a coherent tactical swarm, reassigning roles dynamically in response to attrition and changing objectives.",
+            latency: 120, throughput: 2800, energy: 8.4, cost: 4.60, accuracy: 94.2 },
+          { name: "Intelligence Fusion & Threat Analysis", cpu: 25, gpu: 55, qpu: 20,
+            cpuTasks: "SIGINT/IMINT data ingestion", gpuTasks: "Multi-source fusion transformer, target recognition", qpuTasks: "Anomaly graph detection",
+            desc: "GPU transformer fuses SIGINT, IMINT, HUMINT, and OSINT streams in real time; QPU graph algorithms surface hidden network connections in adversary activity.",
+            latency: 680, throughput: 3400, energy: 9.6, cost: 7.20, accuracy: 91.4 }
+        ],
+        integration: { title: "Joint All-Domain Operations Platform",
+          sub: "Unified situational awareness and decision superiority across all operational domains",
+          outputs: [
+            { type: "CPU", title: "C2 Command Layer", desc: "Authoritative operational picture, tasking orders, and rules-of-engagement enforcement distributed to all nodes in real time", val: "Sub-second C2 sync" },
+            { type: "GPU", title: "Threat Intelligence", desc: "Fused multi-source intelligence picture with target classification, trajectory prediction, and threat ranking updated continuously", val: "91%+ target ID accuracy" },
+            { type: "QPU", title: "Optimal Mission Plans", desc: "Quantum-optimal asset assignment and routing reducing mission execution time and collateral risk simultaneously", val: "40% faster planning" }
+          ],
+          final: "JADO platform delivers 40% faster mission planning, quantum-secured comms, and 91%+ threat identification accuracy",
+          metric: "40%", metricLabel: "faster mission planning"
+        }
+      },
+      radar: {
+        name: "Radar & Signal Intelligence",
+        hint: "RF sensing, EW & space surveillance",
+        workloads: [
+          { name: "Phased Array Radar Processing", cpu: 15, gpu: 78, qpu: 7,
+            cpuTasks: "Waveform scheduling, tracking logic", gpuTasks: "Beamforming, Doppler FFT, CFAR detection", qpuTasks: "Clutter rejection sampling",
+            desc: "GPU-accelerated phased array processing handles 10,000+ range-Doppler cells per pulse repetition interval, enabling simultaneous track of 500+ targets.",
+            latency: 2, throughput: 12000000, energy: 18.4, cost: 0.04, accuracy: 97.6 },
+          { name: "Electronic Warfare Spectrum Management", cpu: 25, gpu: 35, qpu: 40,
+            cpuTasks: "Frequency deconfliction, EW control", gpuTasks: "Wideband signal classification DNN", qpuTasks: "Spectrum allocation QUBO",
+            desc: "QPU solves contested electromagnetic spectrum allocation across 10,000+ frequency slots under adversarial jamming conditions in sub-millisecond decision cycles.",
+            latency: 0.6, throughput: 28000000, energy: 14.2, cost: 0.02, accuracy: 93.8 },
+          { name: "Space Domain Awareness", cpu: 30, gpu: 55, qpu: 15,
+            cpuTasks: "TLE propagation, conjunction analysis", gpuTasks: "Optical/radar sensor fusion", qpuTasks: "Collision probability optimisation",
+            desc: "GPU sensor fusion tracks 40,000+ resident space objects; QPU optimises manoeuvre planning for conjunction avoidance across large satellite constellations.",
+            latency: 18000, throughput: 420, energy: 11.8, cost: 8.40, accuracy: 98.4 },
+          { name: "Hypersonic Target Tracking", cpu: 20, gpu: 60, qpu: 20,
+            cpuTasks: "Fire control, intercept guidance", gpuTasks: "Manoeuvring re-entry vehicle tracking", qpuTasks: "Trajectory prediction under uncertainty",
+            desc: "GPU-based multi-hypothesis tracker maintains custody of manoeuvring hypersonic vehicles at Mach 10+; QPU propagates trajectory uncertainty for intercept window optimisation.",
+            latency: 4, throughput: 4800000, energy: 22.6, cost: 0.12, accuracy: 89.2 }
+        ],
+        integration: { title: "Integrated Air & Missile Defence System",
+          sub: "Multi-layer sensing and engagement coordination from near-space to terminal phase",
+          outputs: [
+            { type: "CPU", title: "Fire Control", desc: "Intercept launch authorisation, weapon assignment, and engagement sequencing with deterministic latency guarantees", val: "<4ms fire control" },
+            { type: "GPU", title: "Sensor Fusion Picture", desc: "Merged track file from all sensor nodes providing single integrated air picture at the speed of the threat", val: "500+ simultaneous tracks" },
+            { type: "QPU", title: "Engagement Optimisation", desc: "Quantum-optimal interceptor allocation maximising kill probability while minimising magazine expenditure", val: "35% salvo reduction" }
+          ],
+          final: "Integrated IADS achieves 98%+ track continuity, quantum-optimised engagement sequencing, and 35% reduction in interceptor expenditure",
+          metric: "98%+", metricLabel: "track continuity"
+        }
+      }
+    }
+  },
+
+  materials: {
+    name: "Materials Science",
+    icon: "⚗",
+    color: "#14b8a6",
+    desc: "Battery technology, semiconductor design, and quantum chemistry",
+    tag: "Deep Tech",
+    subsectors: {
+      battery: {
+        name: "Battery & Energy Materials",
+        hint: "Next-gen storage & electrolytes",
+        workloads: [
+          { name: "Electrolyte Molecular Simulation", cpu: 10, gpu: 35, qpu: 55,
+            cpuTasks: "Force field setup, thermodynamic integration", gpuTasks: "Classical MD trajectory simulation", qpuTasks: "VQE electrolyte solvation energies",
+            desc: "VQE on QPU computes accurate solvation free energies for novel electrolyte molecules, guiding solid-state battery electrolyte selection with quantum chemical accuracy.",
+            latency: 18600, throughput: 8, energy: 16.4, cost: 280, accuracy: 98.8 },
+          { name: "Cathode Material Screening", cpu: 20, gpu: 60, qpu: 20,
+            cpuTasks: "Crystal structure database queries", gpuTasks: "Graph neural network property prediction", qpuTasks: "Quantum phase estimation",
+            desc: "GNN screens 500,000+ candidate cathode structures per day; QPU phase estimation validates electronic structure for the top shortlist with near-exact accuracy.",
+            latency: 840, throughput: 6200, energy: 9.8, cost: 48, accuracy: 94.6 },
+          { name: "Battery Degradation Modelling", cpu: 30, gpu: 58, qpu: 12,
+            cpuTasks: "SEI growth ODE solver, aging data ETL", gpuTasks: "Physics-informed neural network (PINN)", qpuTasks: "Stochastic defect sampling",
+            desc: "PINN on GPU captures multi-physics degradation (lithium plating, SEI, mechanical fracture) in real-time, predicting remaining useful life within 2% error.",
+            latency: 1400, throughput: 2800, energy: 7.2, cost: 22, accuracy: 97.8 },
+          { name: "Solid-State Electrolyte Design", cpu: 15, gpu: 30, qpu: 55,
+            cpuTasks: "Synthesis route planning, patent search", gpuTasks: "Diffusion pathway MD simulation", qpuTasks: "Quantum tunnelling ion transport",
+            desc: "QPU models quantum tunnelling contributions to lithium-ion transport in solid electrolytes — a regime classical MD fundamentally cannot capture accurately.",
+            latency: 32400, throughput: 3, energy: 24.8, cost: 420, accuracy: 99.4 }
+        ],
+        integration: { title: "AI-Quantum Materials Discovery Platform",
+          sub: "Full-stack accelerated discovery from molecular screening to prototype validation",
+          outputs: [
+            { type: "CPU", title: "Synthesis Roadmaps", desc: "Step-by-step synthesis protocols, precursor sourcing, and safety data sheets for top candidate materials ready for lab validation", val: "10x faster synthesis planning" },
+            { type: "GPU", title: "Candidate Library", desc: "Ranked database of 10,000+ screened materials with predicted energy density, cycle life, and safety profile at operating conditions", val: "500K candidates → 50" },
+            { type: "QPU", title: "Quantum-Accurate Properties", desc: "Chemically exact formation energies, ion conductivity, and phase stability data for shortlisted candidates replacing months of lab work", val: "99.4% quantum accuracy" }
+          ],
+          final: "Platform reduces battery materials R&D cycle from 10 years to 18 months, with quantum-verified energy density improvements of up to 40%",
+          metric: "10yr→18mo", metricLabel: "R&D cycle compression"
+        }
+      },
+      semiconductor: {
+        name: "Semiconductor Design",
+        hint: "EDA, lithography & yield optimisation",
+        workloads: [
+          { name: "Electronic Design Automation (EDA)", cpu: 25, gpu: 55, qpu: 20,
+            cpuTasks: "RTL synthesis, DRC/LVS verification", gpuTasks: "Parallel place-and-route, timing closure", qpuTasks: "Floorplan optimisation QUBO",
+            desc: "GPU-accelerated EDA reduces place-and-route runtimes from weeks to hours; QPU QUBO finds globally optimal chip floorplans that classical simulated annealing cannot reach.",
+            latency: 14400, throughput: 28, energy: 32.4, cost: 240, accuracy: 97.2 },
+          { name: "Lithography Process Simulation", cpu: 20, gpu: 72, qpu: 8,
+            cpuTasks: "Mask data preparation, OPC rules", gpuTasks: "Aerial image simulation, resist modelling", qpuTasks: "Process window optimisation",
+            desc: "GPU-accelerated rigorous electromagnetic lithography simulation at EUV wavelengths (13.5nm) enables sub-2nm node patterning validation without costly test wafers.",
+            latency: 7200, throughput: 64, energy: 28.6, cost: 180, accuracy: 98.6 },
+          { name: "Fab Yield Optimisation", cpu: 30, gpu: 40, qpu: 30,
+            cpuTasks: "APC control, SPC monitoring", gpuTasks: "Defect detection vision, virtual metrology", qpuTasks: "Process parameter QUBO",
+            desc: "Quantum QUBO optimises 2000+ correlated process parameters simultaneously across a 300mm fab, lifting first-pass yield by tracking subtle cross-layer interactions.",
+            latency: 3600, throughput: 480, energy: 14.8, cost: 86, accuracy: 95.4 },
+          { name: "Power Integrity & Thermal Analysis", cpu: 35, gpu: 58, qpu: 7,
+            cpuTasks: "PDN impedance extraction, SPICE", gpuTasks: "Full-chip thermal FEM solver", qpuTasks: "Decap placement optimisation",
+            desc: "GPU finite-element thermal solver simulates full 3D-IC stack in minutes, identifying hotspots in advanced packaging (CoWoS, HBM) before tape-out.",
+            latency: 5400, throughput: 120, energy: 22.4, cost: 140, accuracy: 96.8 }
+        ],
+        integration: { title: "Intelligent Semiconductor Design & Fab Platform",
+          sub: "End-to-end EDA-to-yield optimisation collapsing design-to-silicon timelines",
+          outputs: [
+            { type: "CPU", title: "Tapeout Package", desc: "GDSII, netlist, timing sign-off reports, and DFM analysis ready for foundry submission with full design rule compliance", val: "30% faster tapeout" },
+            { type: "GPU", title: "Process Validation", desc: "Full-chip lithography, thermal, and power integrity sign-off replacing physical test wafers in the early design phase", val: "60% fewer spins" },
+            { type: "QPU", title: "Optimal Layouts", desc: "Quantum-optimal floorplan and process parameters achieving PPA improvements of 15–22% over classical EDA baselines", val: "18% PPA improvement" }
+          ],
+          final: "Platform reduces chip design cycle by 30% and tape-out respins by 60%, translating to $200M+ NRE savings per node generation",
+          metric: "60%", metricLabel: "fewer tape-out respins"
+        }
+      }
+    }
+  },
+
+  healthcare: {
+    name: "Healthcare",
+    icon: "🏥",
+    color: "#ec4899",
+    desc: "Medical imaging, clinical operations, and hospital resource optimisation",
+    tag: "Clinical",
+    subsectors: {
+      imaging: {
+        name: "Medical Imaging & Diagnostics",
+        hint: "Radiology AI & pathology",
+        workloads: [
+          { name: "Radiology AI — CT/MRI Analysis", cpu: 15, gpu: 80, qpu: 5,
+            cpuTasks: "DICOM ingestion, worklist management", gpuTasks: "3D segmentation CNN, anomaly detection", qpuTasks: "Uncertainty quantification",
+            desc: "GPU-accelerated 3D segmentation analyses a full-body CT in 45 seconds vs 20 minutes manually, flagging incidental findings across 12 organ systems simultaneously.",
+            latency: 45000, throughput: 80, energy: 7.4, cost: 0.80, accuracy: 96.2 },
+          { name: "Computational Pathology", cpu: 15, gpu: 82, qpu: 3,
+            cpuTasks: "Slide scanning pipeline, reporting", gpuTasks: "Gigapixel WSI transformer, cell detection", qpuTasks: "Rare cell sampling",
+            desc: "Vision transformer processes whole-slide images at 40× magnification — 100,000+ cells per slide — grading tumours and detecting microsatellite instability in under 2 minutes.",
+            latency: 120000, throughput: 30, energy: 9.2, cost: 1.40, accuracy: 94.8 },
+          { name: "Multi-Modal Diagnostic Fusion", cpu: 20, gpu: 65, qpu: 15,
+            cpuTasks: "EHR feature extraction, lab results", gpuTasks: "Multi-modal transformer (imaging + labs + notes)", qpuTasks: "Differential diagnosis ranking",
+            desc: "Fused model integrating imaging, labs, clinical notes, and wearable data outperforms single-modality diagnosis by 18% on rare disease detection.",
+            latency: 8400, throughput: 420, energy: 6.8, cost: 2.20, accuracy: 93.6 },
+          { name: "Radiation Treatment Planning", cpu: 25, gpu: 60, qpu: 15,
+            cpuTasks: "CT-to-dose conversion, plan evaluation", gpuTasks: "Monte Carlo dose calculation", qpuTasks: "Beam angle QUBO optimisation",
+            desc: "GPU Monte Carlo delivers radiotherapy dose maps in 3 minutes vs 4 hours; QPU optimises beam angles across 360° to maximise tumour coverage while minimising healthy tissue dose.",
+            latency: 180000, throughput: 18, energy: 12.4, cost: 4.80, accuracy: 98.2 }
+        ],
+        integration: { title: "AI-Powered Clinical Diagnostics Platform",
+          sub: "Radiologist-grade AI across all imaging modalities, integrated into clinical workflow",
+          outputs: [
+            { type: "CPU", title: "Clinical Reports", desc: "Structured radiology and pathology reports pushed to EMR within 5 minutes of scan completion, with priority flagging for critical findings", val: "5-min report TAT" },
+            { type: "GPU", title: "Diagnostic Insights", desc: "Annotated imaging studies with AI-identified findings, confidence scores, and relevant prior comparison automatically surfaced for clinicians", val: "96%+ sensitivity" },
+            { type: "QPU", title: "Optimal Treatment Plans", desc: "Quantum-optimal radiotherapy plans delivered in minutes, replacing 4-hour manual planning sessions for each cancer patient", val: "98.2% dose accuracy" }
+          ],
+          final: "Platform reduces diagnostic turnaround by 85%, increases rare disease detection by 18%, and delivers quantum-optimised treatment plans in minutes",
+          metric: "85%", metricLabel: "faster diagnostic turnaround"
+        }
+      },
+      clinical_ops: {
+        name: "Clinical Operations",
+        hint: "Hospital scheduling & patient flow",
+        workloads: [
+          { name: "OR Scheduling Optimisation", cpu: 20, gpu: 25, qpu: 55,
+            cpuTasks: "EHR/EMR integration, staff rosters", gpuTasks: "Demand forecasting LSTM", qpuTasks: "Surgical schedule QUBO",
+            desc: "Quantum QUBO optimises operating theatre scheduling across 20+ theatres, 200+ staff, and 1000+ weekly cases — a combinatorial problem with 10^40 possible solutions.",
+            latency: 14400, throughput: 42, energy: 4.2, cost: 3.60, accuracy: 96.8 },
+          { name: "ICU Patient Flow & Triage", cpu: 25, gpu: 50, qpu: 25,
+            cpuTasks: "Vital sign ingestion, EHR alerts", gpuTasks: "Early warning score LSTM, deterioration prediction", qpuTasks: "Bed allocation optimisation",
+            desc: "GPU-based early warning system predicts clinical deterioration 6 hours in advance; QPU optimises bed allocation across a 500-bed hospital in real time.",
+            latency: 2400, throughput: 1800, energy: 5.6, cost: 1.80, accuracy: 91.4 },
+          { name: "Drug Dispensing & Supply Chain", cpu: 30, gpu: 28, qpu: 42,
+            cpuTasks: "Pharmacy system integration, compliance", gpuTasks: "Consumption forecasting model", qpuTasks: "Inventory allocation QUBO",
+            desc: "Quantum solver optimises pharmaceutical inventory across a 50-hospital network, reducing drug wastage by 34% and eliminating critical drug stockouts.",
+            latency: 7200, throughput: 380, energy: 3.8, cost: 2.40, accuracy: 95.2 },
+          { name: "Clinical Trial Matching", cpu: 25, gpu: 45, qpu: 30,
+            cpuTasks: "Protocol ingestion, eligibility parsing", gpuTasks: "NLP patient-trial matching transformer", qpuTasks: "Multi-criterion optimisation",
+            desc: "NLP model screens 10,000 patient records against 2,000 active trials in seconds; QPU maximises enrolment across competing trials while respecting exclusion criteria.",
+            latency: 3600, throughput: 2800, energy: 4.4, cost: 1.60, accuracy: 89.8 }
+        ],
+        integration: { title: "Intelligent Hospital Operations System",
+          sub: "Autonomous clinical operations driven by predictive AI and quantum optimisation",
+          outputs: [
+            { type: "CPU", title: "Operational Workflows", desc: "Automated scheduling, staffing assignments, and drug dispensing orders pushed to hospital systems with full audit trail", val: "Zero-touch scheduling" },
+            { type: "GPU", title: "Predictive Alerts", desc: "Patient deterioration warnings, capacity forecasts, and supply chain risk signals delivered to clinical teams 6 hours ahead", val: "6-hr early warning" },
+            { type: "QPU", title: "Optimised Allocations", desc: "Quantum-optimal bed, theatre, and drug allocation reducing costs by 22% and improving patient throughput by 18%", val: "22% cost reduction" }
+          ],
+          final: "Intelligent hospital OS reduces operational costs by 22%, improves on-time surgery start rate to 94%, and eliminates critical drug stockouts",
+          metric: "22%", metricLabel: "operational cost reduction"
+        }
+      }
+    }
+  },
+
+  telecom: {
+    name: "Telecommunications",
+    icon: "📡",
+    color: "#8b5cf6",
+    desc: "5G/6G networks, spectrum optimisation, and quantum-secure communications",
+    tag: "Networks",
+    subsectors: {
+      network_opt: {
+        name: "5G/6G Network Optimisation",
+        hint: "Beamforming, slicing & RAN intelligence",
+        workloads: [
+          { name: "Massive MIMO Beamforming", cpu: 15, gpu: 82, qpu: 3,
+            cpuTasks: "RRC protocol, UE scheduling", gpuTasks: "256-antenna precoding matrix, CSI processing", qpuTasks: "Interference nulling sampling",
+            desc: "GPU computes optimal precoding matrices for 256-antenna massive MIMO arrays in <1ms, serving 512 simultaneous UEs with 94% spectral efficiency.",
+            latency: 0.8, throughput: 96000000, energy: 14.8, cost: 0.0008, accuracy: 94.2 },
+          { name: "RAN Intelligent Controller (RIC)", cpu: 25, gpu: 60, qpu: 15,
+            cpuTasks: "O-RAN interfaces, policy enforcement", gpuTasks: "Traffic prediction transformer, xApp inference", qpuTasks: "Radio resource QUBO",
+            desc: "Near-RT RIC on GPU predicts cell-level traffic 10 minutes ahead; non-RT RIC uses QPU to optimally allocate PRBs across heterogeneous RAN at millisecond scale.",
+            latency: 8, throughput: 14000000, energy: 18.4, cost: 0.004, accuracy: 92.6 },
+          { name: "Network Slicing & QoS", cpu: 30, gpu: 45, qpu: 25,
+            cpuTasks: "Slice orchestration, SLA monitoring", gpuTasks: "Traffic classification DNN, anomaly detection", qpuTasks: "Slice admission QUBO",
+            desc: "QPU solves slice admission control across 10,000+ concurrent network slices with conflicting SLA requirements — a constraint satisfaction problem exponential in slice count.",
+            latency: 12, throughput: 8600000, energy: 11.2, cost: 0.006, accuracy: 96.4 },
+          { name: "Energy-Efficient RAN Sleep Mode", cpu: 20, gpu: 42, qpu: 38,
+            cpuTasks: "SON control, coverage verification", gpuTasks: "Load prediction LSTM, coverage modelling", qpuTasks: "Cell sleep scheduling QUBO",
+            desc: "Quantum scheduler determines optimal cell sleep patterns across 50,000+ base stations to minimise energy use while maintaining coverage SLAs — saving up to 30% energy.",
+            latency: 300000, throughput: 12, energy: 6.4, cost: 18, accuracy: 97.8 }
+        ],
+        integration: { title: "AI-Native RAN Orchestration Platform",
+          sub: "Self-optimising radio network delivering maximum capacity at minimum energy cost",
+          outputs: [
+            { type: "CPU", title: "O-RAN Control", desc: "Standards-compliant O-RAN interfaces executing policy decisions from Near-RT and Non-RT RIC in real time across all base stations", val: "50K+ cells managed" },
+            { type: "GPU", title: "Network Intelligence", desc: "Continuous traffic predictions, anomaly alerts, and capacity optimisation signals fed to RIC applications and NOC dashboards", val: "94% spectral efficiency" },
+            { type: "QPU", title: "Optimal Resource Plans", desc: "Quantum-optimal PRB allocation and cell sleep schedules updated every 10 minutes across the entire national RAN footprint", val: "30% energy saving" }
+          ],
+          final: "AI-native RAN achieves 30% energy reduction, 94% spectral efficiency, and 99.999% SLA compliance across the network",
+          metric: "30%", metricLabel: "RAN energy reduction"
+        }
+      },
+      quantum_comms: {
+        name: "Quantum-Secure Communications",
+        hint: "QKD, PQC & network security",
+        workloads: [
+          { name: "Quantum Key Distribution (QKD)", cpu: 20, gpu: 20, qpu: 60,
+            cpuTasks: "Key management, classical reconciliation", gpuTasks: "Sifting & error correction acceleration", qpuTasks: "Entanglement-based QKD protocol",
+            desc: "Entanglement-based BB84/E91 QKD generates information-theoretically secure keys at 1Mbps over metropolitan fibre networks, immune to any computational attack.",
+            latency: 2400, throughput: 1000000, energy: 3.2, cost: 8.40, accuracy: 99.97 },
+          { name: "Post-Quantum TLS Migration", cpu: 40, gpu: 35, qpu: 25,
+            cpuTasks: "Certificate authority migration, PKI", gpuTasks: "Batch PQC signature verification", qpuTasks: "Hybrid classical-quantum handshake",
+            desc: "Hybrid PQC/classical TLS 1.3 stack enables zero-downtime migration of enterprise communication infrastructure to NIST-standardised quantum-resistant algorithms.",
+            latency: 18, throughput: 180000, energy: 5.8, cost: 0.04, accuracy: 99.99 },
+          { name: "Network Intrusion Detection", cpu: 20, gpu: 55, qpu: 25,
+            cpuTasks: "Firewall rule management, SIEM", gpuTasks: "Deep packet inspection transformer", qpuTasks: "Quantum anomaly clustering",
+            desc: "GPU transformer inspects 100Gbps traffic streams in real time; QPU quantum k-means clustering identifies novel attack patterns invisible to signature-based IDS.",
+            latency: 0.2, throughput: 100000000000, energy: 16.4, cost: 0.0001, accuracy: 98.4 },
+          { name: "Quantum Repeater Network Planning", cpu: 25, gpu: 30, qpu: 45,
+            cpuTasks: "Classical network topology, SDN control", gpuTasks: "Entanglement fidelity simulation", qpuTasks: "Quantum network routing QUBO",
+            desc: "QPU optimises quantum repeater placement and entanglement swapping paths across metropolitan and wide-area quantum networks to maximise end-to-end fidelity.",
+            latency: 86400, throughput: 4, energy: 8.6, cost: 420, accuracy: 97.2 }
+        ],
+        integration: { title: "Quantum-Secure Network Infrastructure",
+          sub: "Future-proof communication network combining QKD, PQC, and AI-driven threat detection",
+          outputs: [
+            { type: "CPU", title: "PKI & Key Management", desc: "Centralised quantum-safe key management infrastructure distributing PQC certificates and QKD-derived keys to all network endpoints", val: "Zero trust enforced" },
+            { type: "GPU", title: "Threat Intelligence", desc: "Real-time deep packet inspection and anomaly detection across 100Gbps links, identifying known and novel attack patterns continuously", val: "98.4% detection rate" },
+            { type: "QPU", title: "Quantum-Safe Keys", desc: "Information-theoretically secure key material from QKD networks distributed to critical infrastructure, government, and financial endpoints", val: "Unconditional security" }
+          ],
+          final: "Quantum-secure network delivers unconditional communication security, 98.4% intrusion detection, and full PQC migration with zero downtime",
+          metric: "100%", metricLabel: "quantum-safe coverage"
+        }
+      }
+    }
+  },
+
+  climate: {
+    name: "Climate & Earth Sciences",
+    icon: "🌍",
+    color: "#22c55e",
+    desc: "Climate modelling, carbon optimisation, and earth system simulation",
+    tag: "Sustainability",
+    subsectors: {
+      climate_model: {
+        name: "Climate System Modelling",
+        hint: "GCM, weather prediction & ocean sim",
+        workloads: [
+          { name: "Global Climate Model (GCM) Simulation", cpu: 20, gpu: 65, qpu: 15,
+            cpuTasks: "Atmospheric dynamics solver, I/O", gpuTasks: "Ocean-atmosphere coupling, parallelised FVM", qpuTasks: "Cloud microphysics ensemble",
+            desc: "GPU-accelerated finite-volume GCM resolves climate dynamics at 1km horizontal resolution globally — a 100x improvement over operational models — enabling regional impact projections.",
+            latency: 86400000, throughput: 1, energy: 480, cost: 8400, accuracy: 94.2 },
+          { name: "Numerical Weather Prediction (NWP)", cpu: 25, gpu: 65, qpu: 10,
+            cpuTasks: "Data assimilation, ensemble control", gpuTasks: "GPU-native dynamical core, radar assimilation", qpuTasks: "Ensemble perturbation sampling",
+            desc: "GPU-native NWP delivers 10-day global forecasts at 3km resolution in 4 minutes wall-clock time, enabling rapid-refresh warnings for high-impact weather events.",
+            latency: 240000, throughput: 6, energy: 82, cost: 420, accuracy: 92.8 },
+          { name: "Ocean Circulation Simulation", cpu: 25, gpu: 68, qpu: 7,
+            cpuTasks: "Tidal forcing, boundary conditions", gpuTasks: "Eddy-resolving ocean model (MOM6/NEMO)", qpuTasks: "Thermohaline uncertainty",
+            desc: "Eddy-resolving ocean model at 1/12° resolution captures mesoscale dynamics critical for AMOC stability assessment and marine heatwave prediction.",
+            latency: 172800000, throughput: 1, energy: 620, cost: 12000, accuracy: 91.6 },
+          { name: "Extreme Event Attribution", cpu: 30, gpu: 58, qpu: 12,
+            cpuTasks: "Historical data curation, statistical tests", gpuTasks: "Counterfactual ensemble generation", qpuTasks: "Causal inference under uncertainty",
+            desc: "GPU ensemble runs thousands of factual and counterfactual climate scenarios; QPU causal inference quantifies the anthropogenic contribution to specific extreme events.",
+            latency: 604800000, throughput: 1, energy: 1200, cost: 28000, accuracy: 88.4 }
+        ],
+        integration: { title: "Unified Earth System Digital Twin",
+          sub: "Highest-resolution coupled atmosphere-ocean-land model for climate decision support",
+          outputs: [
+            { type: "CPU", title: "Forecast Products", desc: "Operational weather forecasts, seasonal outlooks, and multi-decadal climate projections delivered to governments, insurers, and agriculture sectors", val: "10-day forecasts in 4 min" },
+            { type: "GPU", title: "High-Resolution Projections", desc: "1km-resolution regional climate impact maps covering precipitation, temperature extremes, sea level, and wildfire risk to 2100", val: "1km global resolution" },
+            { type: "QPU", title: "Uncertainty Quantification", desc: "Quantum-assisted ensemble attribution quantifying climate risk probabilities for policy-grade scientific assessments", val: "IPCC-grade confidence" }
+          ],
+          final: "Earth system twin delivers IPCC-grade climate projections at unprecedented resolution, cutting forecast production time by 95%",
+          metric: "95%", metricLabel: "faster forecast production"
+        }
+      },
+      carbon: {
+        name: "Carbon & Sustainability Optimisation",
+        hint: "Emissions tracking, carbon markets & clean energy transition",
+        workloads: [
+          { name: "National Emissions Inventory", cpu: 30, gpu: 55, qpu: 15,
+            cpuTasks: "Sector reporting, MRV compliance", gpuTasks: "Satellite-based emissions detection (ML)", qpuTasks: "Source attribution optimisation",
+            desc: "GPU ML processes Sentinel-5P and GHGSat satellite imagery to detect and attribute methane and CO₂ point sources at 50m resolution globally in near-real time.",
+            latency: 86400, throughput: 24, energy: 18.4, cost: 120, accuracy: 93.8 },
+          { name: "Carbon Market Optimisation", cpu: 20, gpu: 30, qpu: 50,
+            cpuTasks: "Registry integration, compliance reporting", gpuTasks: "Price forecasting transformer", qpuTasks: "Portfolio QUBO (credits + offsets)",
+            desc: "QPU optimises carbon credit portfolio allocation across compliance and voluntary markets under evolving price signals, regulatory changes, and project co-benefit constraints.",
+            latency: 2400, throughput: 1200, energy: 4.8, cost: 3.60, accuracy: 92.4 },
+          { name: "Clean Energy Transition Planning", cpu: 25, gpu: 30, qpu: 45,
+            cpuTasks: "Grid infrastructure data, capex modelling", gpuTasks: "Demand growth forecasting", qpuTasks: "Multi-decade investment path QUBO",
+            desc: "Quantum optimiser solves the multi-decade national energy transition planning problem — technology mix, build sequencing, stranded asset phaseout — across 10,000+ variables.",
+            latency: 28800, throughput: 8, energy: 7.2, cost: 48, accuracy: 91.2 },
+          { name: "Forest & Land-Use Carbon Monitoring", cpu: 25, gpu: 65, qpu: 10,
+            cpuTasks: "REDD+ reporting, registry submission", gpuTasks: "SAR/multispectral change detection CNN", qpuTasks: "Biomass uncertainty quantification",
+            desc: "SAR and multispectral fusion on GPU detects deforestation events at 10m resolution within 24 hours globally, providing MRV-grade carbon stock accounting for REDD+ projects.",
+            latency: 86400, throughput: 18, energy: 12.6, cost: 68, accuracy: 95.6 }
+        ],
+        integration: { title: "Integrated Climate Intelligence & Carbon Platform",
+          sub: "End-to-end emissions monitoring, verification, and optimisation for net-zero transition",
+          outputs: [
+            { type: "CPU", title: "MRV Reports", desc: "Automated MRV-grade emissions reporting to UNFCCC, national registries, and corporate ESG disclosures with full audit trail and regulatory compliance", val: "MRV-grade reporting" },
+            { type: "GPU", title: "Satellite Intelligence", desc: "Near-real-time global emissions maps at 50m resolution from satellite data, detecting unreported methane leaks and deforestation events within 24 hours", val: "50m resolution globally" },
+            { type: "QPU", title: "Optimal Transition Paths", desc: "Quantum-optimal national energy and land-use transition plans minimising cost and emissions simultaneously across multi-decade planning horizons", val: "40% lower transition cost" }
+          ],
+          final: "Platform enables Paris-compliant emissions tracking at national scale, quantum-optimal transition planning, and 40% lower net-zero transition cost",
+          metric: "40%", metricLabel: "lower net-zero transition cost"
+        }
+      }
+    }
+  }
+};
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let state = { sector: null, subsector: null, workload: null, cpu: 0, gpu: 0, qpu: 0 };
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function init() {
+  renderSectors();
+}
+
+function renderSectors() {
+  const grid = document.getElementById('sector-grid');
+  grid.innerHTML = '';
+  Object.entries(DATA).forEach(([key, s]) => {
+    const card = document.createElement('div');
+    card.className = 'sector-card' + (state.sector === key ? ' selected' : '');
+    card.style.setProperty('--card-color', s.color);
+    card.innerHTML = `
+      <div class="glow" style="background:${s.color}"></div>
+      <div style="position:relative;z-index:1">
+        <span class="sector-icon">${s.icon}</span>
+        <div class="sector-name">${s.name}</div>
+        <div class="sector-desc">${s.desc}</div>
+        <span class="sector-tag" style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44">${s.tag}</span>
+      </div>`;
+    card.onclick = () => selectSector(key);
+    card.style.setProperty('--card-color', s.color);
+    // Add dynamic border gradient on hover via inline style trick
+    grid.appendChild(card);
+  });
+}
+
+function selectSector(key) {
+  state.sector = key;
+  state.subsector = null;
+  state.workload = null;
+  renderSectors();
+  showPanel('subsectors');
+  renderSubsectors();
+  setStep(2);
+}
+
+function renderSubsectors() {
+  const s = DATA[state.sector];
+  document.getElementById('subsector-sector-name').textContent = s.name;
+  document.getElementById('subsector-sector-desc').textContent = s.desc;
+  const grid = document.getElementById('subsector-grid');
+  grid.innerHTML = '';
+  Object.entries(s.subsectors).forEach(([key, ss]) => {
+    const card = document.createElement('div');
+    card.className = 'subsector-card' + (state.subsector === key ? ' selected' : '');
+    card.innerHTML = `<div class="subsector-name">${ss.name}</div><div class="subsector-hint">${ss.hint}</div>`;
+    card.onclick = () => selectSubsector(key);
+    grid.appendChild(card);
+  });
+}
+
+function selectSubsector(key) {
+  state.subsector = key;
+  state.workload = null;
+  renderSubsectors();
+  showPanel('simulation');
+  renderSimulation();
+  setStep(3);
+}
+
+function renderSimulation() {
+  const ss = DATA[state.sector].subsectors[state.subsector];
+  document.getElementById('sim-section-title').textContent =
+    DATA[state.sector].name + ' — ' + ss.name;
+  renderWorkloadList();
+  clearCompute();
+  clearMetrics();
+}
+
+function renderWorkloadList() {
+  const ss = DATA[state.sector].subsectors[state.subsector];
+  const list = document.getElementById('workload-list');
+  list.innerHTML = '';
+  ss.workloads.forEach((wl, i) => {
+    const item = document.createElement('div');
+    item.className = 'workload-item' + (state.workload === i ? ' active' : '');
+    const dominant = wl.cpu >= wl.gpu && wl.cpu >= wl.qpu ? 'cpu' :
+                     wl.gpu >= wl.qpu ? 'gpu' : 'qpu';
+    const domColor = dominant === 'cpu' ? 'var(--cpu)' : dominant === 'gpu' ? 'var(--gpu)' : 'var(--qpu)';
+    item.style.setProperty('--wl-color', domColor);
+    const total = wl.cpu + wl.gpu + wl.qpu;
+    item.innerHTML = `
+      <div class="wl-top">
+        <div>
+          <div class="wl-name">${wl.name}</div>
+          <div class="wl-chips">
+            ${wl.cpu > 0 ? `<span class="chip chip-cpu">CPU ${wl.cpu}%</span>` : ''}
+            ${wl.gpu > 0 ? `<span class="chip chip-gpu">GPU ${wl.gpu}%</span>` : ''}
+            ${wl.qpu > 0 ? `<span class="chip chip-qpu">QPU ${wl.qpu}%</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="wl-bar">
+        <div class="wl-bar-fill" style="width:${(Math.max(wl.cpu,wl.gpu,wl.qpu)/100)*100}%;background:${domColor}"></div>
+      </div>`;
+    item.onclick = () => selectWorkload(i);
+    list.appendChild(item);
+  });
+}
+
+function selectWorkload(i) {
+  state.workload = i;
+  const ss = DATA[state.sector].subsectors[state.subsector];
+  const wl = ss.workloads[i];
+  state.cpu = wl.cpu; state.gpu = wl.gpu; state.qpu = wl.qpu;
+  renderWorkloadList();
+  updateCompute();
+  updateMetrics();
+  document.getElementById('no-workload-msg').style.display = 'none';
+  document.getElementById('slider-section').style.display = 'block';
+  document.getElementById('active-workload-name').textContent = wl.name;
+  document.getElementById('wl-detail-box').classList.remove('hidden');
+  document.getElementById('wl-detail-text').textContent = wl.desc;
+}
+
+function updateCompute() {
+  const wl = DATA[state.sector].subsectors[state.subsector].workloads[state.workload];
+  const c = state.cpu, g = state.gpu, q = state.qpu;
+  // Update percentages
+  document.getElementById('cpu-pct').textContent = c + '%';
+  document.getElementById('gpu-pct').textContent = g + '%';
+  document.getElementById('qpu-pct').textContent = q + '%';
+  document.getElementById('cpu-bar').style.width = c + '%';
+  document.getElementById('gpu-bar').style.width = g + '%';
+  document.getElementById('qpu-bar').style.width = q + '%';
+  // Update task descriptions
+  document.getElementById('cpu-tasks').textContent = wl.cpuTasks;
+  document.getElementById('gpu-tasks').textContent = wl.gpuTasks;
+  document.getElementById('qpu-tasks').textContent = wl.qpuTasks;
+  // Update sliders
+  setSlider('cpu', c);
+  setSlider('gpu', g);
+  setSlider('qpu', q);
+  // Performance score (heuristic based on alignment with optimal)
+  const defaultCpu = wl.cpu, defaultGpu = wl.gpu, defaultQpu = wl.qpu;
+  const diff = (Math.abs(c - defaultCpu) + Math.abs(g - defaultGpu) + Math.abs(q - defaultQpu)) / 2;
+  const score = Math.max(40, Math.round(100 - diff * 0.8));
+  document.getElementById('perf-score').textContent = score;
+}
+
+function setSlider(type, val) {
+  const slider = document.getElementById(type + '-slider');
+  const valEl = document.getElementById(type + '-slider-val');
+  slider.value = val;
+  slider.style.setProperty('--val', val + '%');
+  valEl.textContent = val + '%';
+}
+
+function onSliderChange(type, val) {
+  val = parseInt(val);
+  state[type] = val;
+  document.getElementById(type + '-slider').style.setProperty('--val', val + '%');
+  document.getElementById(type + '-slider-val').textContent = val + '%';
+  document.getElementById(type + '-pct').textContent = val + '%';
+  document.getElementById(type + '-bar').style.width = val + '%';
+  // Recalc perf score
+  if (state.workload !== null) {
+    const wl = DATA[state.sector].subsectors[state.subsector].workloads[state.workload];
+    const diff = (Math.abs(state.cpu - wl.cpu) + Math.abs(state.gpu - wl.gpu) + Math.abs(state.qpu - wl.qpu)) / 2;
+    const score = Math.max(40, Math.round(100 - diff * 0.8));
+    document.getElementById('perf-score').textContent = score;
+    updateMetrics();
+  }
+}
+
+function updateMetrics() {
+  const wl = DATA[state.sector].subsectors[state.subsector].workloads[state.workload];
+  const scoreFactor = parseInt(document.getElementById('perf-score').textContent) / 100;
+  // Animate metrics with slight variation based on allocation
+  const latency = Math.round(wl.latency * (2 - scoreFactor));
+  const throughput = Math.round(wl.throughput * scoreFactor);
+  const energy = (wl.energy * (1.4 - scoreFactor * 0.4)).toFixed(1);
+  const cost = (wl.cost * (2 - scoreFactor)).toFixed(2);
+  const accuracy = (wl.accuracy * scoreFactor).toFixed(1);
+
+  animateMetric('m-latency', latency > 1000 ? (latency/1000).toFixed(1)+'s' : latency+'ms', 100 - Math.min(100, latency/50));
+  animateMetric('m-throughput', throughput.toLocaleString(), Math.min(100, throughput/1000));
+  animateMetric('m-energy', energy+'kW', 100 - Math.min(100, parseFloat(energy)*4));
+  animateMetric('m-cost', '$'+cost, 100 - Math.min(100, parseFloat(cost)*5));
+  animateMetric('m-accuracy', accuracy+'%', parseFloat(accuracy));
+}
+
+function animateMetric(id, val, barPct) {
+  const el = document.getElementById(id);
+  el.textContent = val;
+  const barId = id + '-bar';
+  const barEl = document.getElementById(barId);
+  if (barEl) barEl.style.width = Math.max(0, Math.min(100, barPct)) + '%';
+}
+
+function clearCompute() {
+  ['cpu','gpu','qpu'].forEach(t => {
+    document.getElementById(t+'-pct').textContent = '0%';
+    document.getElementById(t+'-bar').style.width = '0%';
+    setSlider(t, 0);
+  });
+  document.getElementById('perf-score').textContent = '--';
+  document.getElementById('no-workload-msg').style.display = 'flex';
+  document.getElementById('slider-section').style.display = 'none';
+  document.getElementById('wl-detail-box').classList.add('hidden');
+}
+
+function clearMetrics() {
+  ['m-latency','m-throughput','m-energy','m-cost','m-accuracy'].forEach(id => {
+    document.getElementById(id).textContent = '--';
+    const bar = document.getElementById(id+'-bar');
+    if(bar) bar.style.width = '0%';
+  });
+}
+
+function runSimulation() {
+  if (state.workload === null) {
+    alert('Please select a workload first!');
+    return;
+  }
+  showPanel('integration');
+  renderIntegration();
+  setStep(4);
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function renderIntegration() {
+  const ss = DATA[state.sector].subsectors[state.subsector];
+  const int = ss.integration;
+  document.getElementById('int-title').textContent = int.title;
+  document.getElementById('int-sub').textContent = int.sub;
+
+  // Flow SVG
+  renderFlowDiagram();
+
+  // Output cards
+  const grid = document.getElementById('output-grid');
+  grid.innerHTML = '';
+  int.outputs.forEach(o => {
+    const color = o.type === 'CPU' ? 'var(--cpu-light)' : o.type === 'GPU' ? 'var(--gpu-light)' : 'var(--qpu-light)';
+    const dotColor = o.type === 'CPU' ? 'var(--cpu)' : o.type === 'GPU' ? 'var(--gpu)' : 'var(--qpu)';
+    const card = document.createElement('div');
+    card.className = 'output-card fade-in';
+    card.innerHTML = `
+      <div class="oc-type" style="color:${color}">
+        <span class="oc-dot" style="background:${dotColor}"></span>
+        ${o.type} Output
+      </div>
+      <div class="oc-title">${o.title}</div>
+      <div class="oc-desc">${o.desc}</div>
+      <div class="oc-value" style="color:${color}">${o.val}</div>`;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('fr-title').textContent = int.title;
+  document.getElementById('fr-desc').textContent = int.final;
+  document.getElementById('fr-metric-val').textContent = int.metric;
+  document.getElementById('fr-metric-label').textContent = int.metricLabel;
+}
+
+function renderFlowDiagram() {
+  const svg = document.getElementById('flow-svg');
+  const w = 1200, h = 180;
+
+  const nodes = [
+    {x:60, y:90, label:'Input Data', color:'#475569', icon:'📊'},
+    {x:240, y:40, label:'CPU', color:'#3b82f6', icon:'🖥'},
+    {x:240, y:90, label:'GPU', color:'#10b981', icon:'⚡'},
+    {x:240, y:140, label:'QPU', color:'#a855f7', icon:'🔮'},
+    {x:460, y:90, label:'Orchestration', color:'#06b6d4', icon:'⚙'},
+    {x:660, y:90, label:'Integration', color:'#0891b2', icon:'🔗'},
+    {x:860, y:90, label:'Analytics', color:'#7c3aed', icon:'📈'},
+    {x:1060, y:90, label:'Output', color:'#f59e0b', icon:'🎯'},
+  ];
+
+  const edges = [
+    [0,1],[0,2],[0,3],
+    [1,4],[2,4],[3,4],
+    [4,5],[5,6],[6,7]
+  ];
+
+  let svgContent = `<defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+
+  // Draw edges
+  edges.forEach(([from, to]) => {
+    const f = nodes[from], t = nodes[to];
+    const mx = (f.x + t.x) / 2;
+    svgContent += `<path d="M${f.x+28},${f.y} C${mx},${f.y} ${mx},${t.y} ${t.x-28},${t.y}"
+      fill="none" stroke="rgba(148,163,184,0.25)" stroke-width="1.5"
+      class="flow-line" filter="url(#glow)"/>`;
+    // Animated particle
+    svgContent += `<circle r="3" fill="${t.color}" opacity="0.8" filter="url(#glow)">
+      <animateMotion dur="${1.5 + Math.random()}s" repeatCount="indefinite" rotate="auto">
+        <mpath href="#path-${from}-${to}"/>
+      </animateMotion>
+    </circle>`;
+    svgContent += `<path id="path-${from}-${to}" d="M${f.x+28},${f.y} C${mx},${f.y} ${mx},${t.y} ${t.x-28},${t.y}" fill="none"/>`;
+  });
+
+  // Draw nodes
+  nodes.forEach((n, i) => {
+    svgContent += `<g transform="translate(${n.x},${n.y})">
+      <circle r="28" fill="${n.color}22" stroke="${n.color}" stroke-width="1.5" filter="url(#glow)"/>
+      <text x="0" y="-8" text-anchor="middle" font-size="14" fill="${n.color}">${n.icon}</text>
+      <text x="0" y="7" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="Inter,sans-serif" font-weight="600">${n.label}</text>
+    </g>`;
+  });
+
+  svg.innerHTML = svgContent;
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function showPanel(name) {
+  ['sectors','subsectors','simulation','integration'].forEach(p => {
+    document.getElementById('panel-'+p).classList.add('hidden');
+  });
+  // Always show sectors
+  document.getElementById('panel-sectors').classList.remove('hidden');
+  if (name !== 'sectors') document.getElementById('panel-'+name).classList.remove('hidden');
+}
+
+function backToSectors() {
+  state.subsector = null;
+  state.workload = null;
+  showPanel('sectors');
+  setStep(1);
+}
+
+function backToSubsectors() {
+  state.workload = null;
+  showPanel('subsectors');
+  setStep(2);
+}
+
+function backToSim() {
+  showPanel('simulation');
+  setStep(3);
+}
+
+function goToStep(n) {
+  if (n === 1) backToSectors();
+  else if (n === 2 && state.sector) { showPanel('subsectors'); setStep(2); }
+  else if (n === 3 && state.subsector) { showPanel('simulation'); setStep(3); }
+  else if (n === 4 && state.workload !== null) { showPanel('integration'); setStep(4); }
+}
+
+function setStep(n) {
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById('step'+i);
+    if (i < n) { el.className = 'step done'; el.querySelector('.step-num').textContent = '✓'; }
+    else if (i === n) { el.className = 'step active'; el.querySelector('.step-num').textContent = i; }
+    else { el.className = 'step inactive'; el.querySelector('.step-num').textContent = i; }
+  });
+}
+
+// ─── PAGE NAVIGATION ─────────────────────────────────────────────────────────
+let currentPage = 'home';
+
+function navTo(page) {
+  currentPage = page;
+
+  // Hide/show secondary pages
+  document.getElementById('panel-books').classList.toggle('hidden', page !== 'books');
+  document.getElementById('panel-profile').classList.toggle('hidden', page !== 'profile');
+
+  // Simulator chrome
+  const simIds = ['steps','panel-sectors','panel-subsectors','panel-simulation','panel-integration'];
+  simIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', page !== 'home');
+  });
+
+  // When returning home, re-apply the correct sub-panel visibility
+  if (page === 'home') {
+    // showPanel already manages which sim sub-panels are visible;
+    // restore by re-running the same logic based on current state
+    if (state.subsector !== null) {
+      document.getElementById('panel-simulation').classList.remove('hidden');
+      document.getElementById('panel-subsectors').classList.add('hidden');
+      document.getElementById('panel-integration').classList.add('hidden');
+    } else if (state.sector !== null) {
+      document.getElementById('panel-subsectors').classList.remove('hidden');
+      document.getElementById('panel-simulation').classList.add('hidden');
+      document.getElementById('panel-integration').classList.add('hidden');
+    }
+    // panel-sectors always visible on home
+    document.getElementById('panel-sectors').classList.remove('hidden');
+  }
+
+  // Nav button active state
+  ['home','books','profile'].forEach(n => {
+    document.getElementById('nav-'+n).classList.toggle('active', n === page);
+  });
+
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+document.getElementById('footer-year').textContent = new Date().getFullYear();
+init();
+</script>
+</body>
+</html>
