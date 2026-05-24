@@ -366,6 +366,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:28p
   .compute-grid{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:768px){
+  .flow-container{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;height:160px}
+  .flow-svg{min-width:680px;width:680px;height:160px}
   .app{padding:0 14px 60px}
   header{flex-direction:column;align-items:center;text-align:center;gap:16px;padding:20px 0 24px}
   .logo{justify-content:center}
@@ -1943,7 +1945,9 @@ function runSimulation() {
   showPanel('integration');
   renderIntegration();
   setStep(4);
-  window.scrollTo({top: 0, behavior: 'smooth'});
+  setTimeout(() => {
+    document.getElementById('panel-integration').scrollIntoView({behavior: 'smooth', block: 'start'});
+  }, 80);
 }
 
 function renderIntegration() {
