@@ -1868,20 +1868,31 @@ function updateCompute() {
 }
 
 function setSlider(type, val) {
+  state[type] = val;
   const slider = document.getElementById(type + '-slider');
-  const valEl = document.getElementById(type + '-slider-val');
   slider.value = val;
   slider.style.setProperty('--val', val + '%');
-  valEl.textContent = val + '%';
-}
-
-function onSliderChange(type, val) {
-  val = parseInt(val);
-  state[type] = val;
-  document.getElementById(type + '-slider').style.setProperty('--val', val + '%');
   document.getElementById(type + '-slider-val').textContent = val + '%';
   document.getElementById(type + '-pct').textContent = val + '%';
   document.getElementById(type + '-bar').style.width = val + '%';
+}
+
+function onSliderChange(type, val) {
+  val = Math.min(100, Math.max(0, parseInt(val)));
+  const others = ['cpu','gpu','qpu'].filter(t => t !== type);
+  const a = state[others[0]], b = state[others[1]];
+  const remaining = 100 - val;
+  let newA, newB;
+  if (a + b === 0) {
+    newA = Math.round(remaining / 2);
+    newB = remaining - newA;
+  } else {
+    newA = Math.round(remaining * a / (a + b));
+    newB = remaining - newA;
+  }
+  setSlider(type, val);
+  setSlider(others[0], newA);
+  setSlider(others[1], newB);
   if (state.workload !== null) updateMetrics();
 }
 
