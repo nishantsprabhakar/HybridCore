@@ -1882,25 +1882,52 @@ function onSliderChange(type, val) {
   document.getElementById(type + '-slider-val').textContent = val + '%';
   document.getElementById(type + '-pct').textContent = val + '%';
   document.getElementById(type + '-bar').style.width = val + '%';
-  // Recalc perf score
-  if (state.workload !== null) {
-    const wl = DATA[state.sector].subsectors[state.subsector].workloads[state.workload];
-    const diff = (Math.abs(state.cpu - wl.cpu) + Math.abs(state.gpu - wl.gpu) + Math.abs(state.qpu - wl.qpu)) / 2;
-    const score = Math.max(40, Math.round(100 - diff * 0.8));
-    document.getElementById('perf-score').textContent = score;
-    updateMetrics();
-  }
+  if (state.workload !== null) updateMetrics();
 }
 
 function updateMetrics() {
   const wl = DATA[state.sector].subsectors[state.subsector].workloads[state.workload];
-  const scoreFactor = parseInt(document.getElementById('perf-score').textContent) / 100;
-  // Animate metrics with slight variation based on allocation
-  const latency = Math.round(wl.latency * (2 - scoreFactor));
-  const throughput = Math.round(wl.throughput * scoreFactor);
-  const energy = (wl.energy * (1.4 - scoreFactor * 0.4)).toFixed(1);
-  const cost = (wl.cost * (2 - scoreFactor)).toFixed(2);
-  const accuracy = (wl.accuracy * scoreFactor).toFixed(1);
+  const c = state.cpu, g = state.gpu, q = state.qpu;
+  const oc = wl.cpu, og = wl.gpu, oq = wl.qpu;
+  const tot = oc + og + oq || 100;
+
+  // Supply ratio for each type vs. optimal (capped at 1.15 — over-provisioning gives marginal gain)
+  const cr = oc > 0 ? Math.min(1.15, c / oc) : 1;
+  const gr = og > 0 ? Math.min(1.15, g / og) : 1;
+  const qr = oq > 0 ? Math.min(1.15, q / oq) : 1;
+
+  // Weighted factor per metric: workload fraction + inherent sensitivity bias, then normalised
+  // so that at optimal allocation (cr=gr=qr=1) every factor = 1.0
+  function wFactor(bc, bg, bq) {
+    const wc = oc/tot + bc, wg = og/tot + bg, wq = oq/tot + bq;
+    const sum = wc + wg + wq;
+    return (cr*wc + gr*wg + qr*wq) / sum;
+  }
+
+  // Accuracy: QPU drives precision (VQE / QAOA / optimisation), GPU drives ML model quality
+  const accF = wFactor(0.05, 0.15, 0.35);
+  // Latency: QPU shortens critical path, CPU controls pipeline sequencing
+  const latF = wFactor(0.20, 0.05, 0.25);
+  // Throughput: GPU handles parallel batch inference / simulation
+  const tptF = wFactor(0.10, 0.30, 0.10);
+
+  const accuracy   = Math.min(99.9, wl.accuracy   * Math.min(1.08, accF)).toFixed(1);
+  const latency    = Math.round(wl.latency / Math.max(0.15, latF));
+  const throughput = Math.round(wl.throughput * Math.min(1.15, tptF));
+
+  // Energy: actual weighted load vs. optimal weighted load (QPU ~2× per unit, GPU ~1.3×)
+  const eBase = oc*1.0 + og*1.3 + oq*2.0;
+  const eAct  = c*1.0  + g*1.3  + q*2.0;
+  const energy = (wl.energy * Math.max(0.4, Math.min(1.8, eAct / (eBase||1)))).toFixed(1);
+
+  // Cost: QPU time is ~4× more expensive per unit than CPU
+  const kBase = oc*1.0 + og*1.5 + oq*4.0;
+  const kAct  = c*1.0  + g*1.5  + q*4.0;
+  const cost = (wl.cost * Math.max(0.2, Math.min(2.5, kAct / (kBase||1)))).toFixed(2);
+
+  // Perf score = accuracy factor (most user-visible quality indicator)
+  const score = Math.min(100, Math.max(15, Math.round(accF * 100)));
+  document.getElementById('perf-score').textContent = score;
 
   animateMetric('m-latency', latency > 1000 ? (latency/1000).toFixed(1)+'s' : latency+'ms', 100 - Math.min(100, latency/50));
   animateMetric('m-throughput', throughput.toLocaleString(), Math.min(100, throughput/1000));
