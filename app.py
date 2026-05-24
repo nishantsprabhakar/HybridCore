@@ -7,12 +7,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Remove default Streamlit chrome
 st.markdown("""
 <style>
-    #MainMenu, header, footer { visibility: hidden; }
-    .block-container { padding: 0 !important; max-width: 100% !important; }
-    iframe { border: none; }
+    #MainMenu, header, footer { visibility: hidden; height: 0; }
+    .block-container { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
+    [data-testid="stMain"] { padding: 0 !important; overflow: hidden !important; }
+    [data-testid="stMainBlockContainer"] { padding: 0 !important; }
+    [data-testid="stAppViewContainer"] { overflow: hidden !important; }
+    iframe { border: none; width: 100% !important; height: 100vh !important; display: block; }
 </style>
 """, unsafe_allow_html=True)
 
